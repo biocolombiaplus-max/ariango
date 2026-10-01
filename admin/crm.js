@@ -84,17 +84,52 @@
     var p = (l.docs || []).filter(function (d) { return d.tipo === "propuesta"; })[0];
     return p ? D.totals(p.data).total : 0;
   }
+  function phoneOf(l) { return PP.phoneDigits(l.indicativo, l.telefono); }
   function phoneDigits(t) {
     var d = String(t || "").replace(/\D/g, "");
     if (d.length === 10 && d[0] === "3") d = "57" + d;
     return d;
+  }
+  /* ---------- Datos de la persona ---------- */
+  var PP = D.P;
+  function v2(a) { return a.filter(Boolean).join(", "); }
+  /** Datos del cliente listos para los documentos. */
+  function personaOf(l) {
+    initPersona(l);
+    return {
+      nombre: l.nombre, tipoDoc: PP.docTexto(l.tipoDoc || "CC"), cedula: l.cedula, expedida: l.expedida, fechaExp: l.fechaExp,
+      direccion: v2([l.direccion, l.barrio]), ciudad: v2([l.ciudad, l.depto, l.pais && l.pais !== "Colombia" ? l.pais : ""]),
+      telefono: l.telefono ? PP.phoneText(l.indicativo, l.telefono) : "", email: l.email, genero: l.genero, nacionalidad: l.nacionalidad,
+      estadoCivil: l.estadoCivil, ocupacion: l.ocupacion, fechaNac: l.fechaNac, lugarNac: v2([l.lugarNac, l.deptoNac, l.paisNac])
+    };
+  }
+  /** Datos del asunto del poder tomados de la ficha. */
+  function asuntoDe(l) {
+    var r = l.reg || {}, v = l.ven || {}, su = l.suc || {}, a = {};
+    if (r.serial || r.nuip) a.SERIAL = [r.serial, r.nuip ? "NUIP " + r.nuip : ""].filter(Boolean).join(" / ");
+    if (v.acta) a.ACTA = v.acta + (v.folio ? ", folio " + v.folio : "") + (v.tomo ? ", tomo " + v.tomo : "") + (v.anio ? ", del año " + v.anio : "");
+    if (v.oficina || v.municipio || v.estado) a.LUGAR = v2([v.oficina, v.municipio ? "municipio " + v.municipio : "", v.estado ? "estado " + v.estado : ""]);
+    if (su.causante) a.CAUSANTE = su.causante;
+    if (su.fechaFall) a.FECHA_FALLECIMIENTO = PP.fechaLarga(su.fechaFall);
+    if (su.calidad) a.CALIDAD = su.calidad;
+    return a;
+  }
+  /** Completa la ficha a partir de los datos antiguos (nombre completo y teléfono con indicativo). */
+  function initPersona(l) {
+    if (!l.nombres && !l.apellidos && l.nombre) {
+      var w = String(l.nombre).trim().split(/\s+/), k = w.length >= 4 ? 2 : 1;
+      if (w.length > 1) { l.nombres = w.slice(0, k).join(" "); l.apellidos = w.slice(k).join(" "); } else l.nombres = l.nombre;
+    }
+    if (!l.indicativo) { var sp = PP.splitPhone(l.telefono); l.indicativo = sp.ind || (sp.num.length === 10 && sp.num[0] === "3" ? "57" : sp.num.length === 11 && sp.num[0] === "0" ? "58" : "57"); if (sp.ind) l.telefono = sp.num; }
+    if (l.consentimiento && !l.datos1581) l.datos1581 = { si: true, fecha: String(l.consentimiento.fecha || l.createdAt || "").slice(0, 10), via: "Formulario web" };
+    if (!l.bloques) l.bloques = /suces|heren/i.test(l.servicio || "") ? ["suc"] : /registro|partida|nulidad|doble/i.test(l.servicio || "") ? ["reg", "ven", "padres"] : [];
   }
   function portalUrl(l, docId) {
     if (!l.portal) l.portal = rid(24);
     return location.origin + "/cliente/?l=" + encodeURIComponent(l.id) + "&t=" + encodeURIComponent(l.portal) + (docId ? "&doc=" + encodeURIComponent(docId) : "");
   }
   function waOpen(l, text) {
-    var n = phoneDigits(l.telefono);
+    var n = phoneOf(l);
     window.open("https://wa.me/" + n + "?text=" + encodeURIComponent(text), "_blank", "noopener");
   }
   function nextNumber(tipo) {
@@ -107,7 +142,7 @@
     return {
       firma: cfg().firma,
       cuentas: cfg().cuentas.filter(function (c) { return ids.indexOf(c.id) > -1; }),
-      cliente: { nombre: l.nombre, telefono: l.telefono, email: l.email, ciudad: l.ciudad, cedula: l.cedula, direccion: l.direccion }
+      cliente: personaOf(l)
     };
   }
   function firstName(n) { return String(n || "").split(" ")[0]; }
@@ -215,7 +250,7 @@
     var l = lead(panel.id);
     if (!l) return closePanel();
     var tabs = [["resumen", "Resumen"], ["docs", "Documentos"], ["req", "Requisitos y archivos"], ["pagos", "Pagos"], ["act", "Actividad"]];
-    var tel = phoneDigits(l.telefono);
+    var tel = phoneOf(l);
     host.innerHTML =
       '<div class="crm-panel__bg" data-x></div><div class="crm-panel__box">' +
       '<header class="crm-ph"><button type="button" class="crm-x" data-x aria-label="Cerrar">←</button><div class="crm-ph__t"><b>' + esc(l.nombre || "Nuevo cliente") + "</b><span>" + esc(l.servicio || "Sin servicio") + "</span></div>" +
@@ -246,31 +281,36 @@
   var TABS = {};
 
   TABS.resumen = function (b, l) {
+    initPersona(l);
     var svcs = plantillas().map(function (p) { return p.nombre; });
     if (l.servicio && svcs.indexOf(l.servicio) < 0) svcs.unshift(l.servicio);
     b.innerHTML =
       '<div class="crm-next"><span>Siguiente paso sugerido</span><b>' + esc(nextAction(l.etapa)) + "</b>" + nextButtons(l) + "</div>" +
       (l.mensaje || l.resultado_test ? '<div class="crm-msg"><span>Mensaje del cliente</span>' + (l.mensaje ? "<p>" + esc(l.mensaje) + "</p>" : "") + (l.resultado_test ? "<p><b>" + esc(l.resultado_test) + "</b></p>" : "") + "</div>" : "") +
-      '<div class="form" id="f-lead">' +
-      '<div class="grid2">' + inp("nombre", "Nombre completo", l.nombre) + inp("cedula", "Documento de identidad", l.cedula) + "</div>" +
-      '<div class="grid2">' + inp("telefono", "WhatsApp / celular", l.telefono, "tel") + inp("email", "Correo", l.email, "email") + "</div>" +
-      '<div class="grid2">' + inp("ciudad", "Ciudad", l.ciudad) + inp("expedida", "Documento expedido en", l.expedida) + "</div>" +
-      inp("direccion", "Dirección", l.direccion) +
-      '<div class="grid2"><div class="f"><label>Servicio</label><select name="servicio">' + ['<option value="">Seleccione…</option>'].concat(svcs.map(function (s) { return "<option" + (s === l.servicio ? " selected" : "") + ">" + esc(s) + "</option>"; })).join("") + "</select></div>" +
-      '<div class="f"><label>Abogado a cargo</label><select name="abogadoId"' + (isAdmin() ? "" : " disabled") + '><option value="">— Sin asignar —</option>' + lawyers().map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === l.abogadoId ? " selected" : "") + ">" + esc(p.nombre) + "</option>"; }).join("") + "</select></div></div>" +
-      '<div class="grid2">' + inp("valor", "Honorarios acordados (COP)", l.valor ? Number(l.valor).toLocaleString("es-CO") : "", "text", "money") + inp("etiquetas", "Etiquetas (separadas por coma)", (l.etiquetas || []).join(", ")) + "</div>" +
+      '<div class="crm-complete" id="p-complete"></div>' +
+      '<div class="form crm-pform" id="f-lead">' + personaForm(l) +
+      sec("⚖️ Servicio y gestión",
+        '<div class="grid2"><div class="f"><label>Servicio</label><select data-p="servicio">' + ['<option value="">Seleccione…</option>'].concat(svcs.map(function (s) { return "<option" + (s === l.servicio ? " selected" : "") + ">" + esc(s) + "</option>"; })).join("") + "</select></div>" +
+        '<div class="f"><label>Abogado a cargo</label><select name="abogadoId"' + (isAdmin() ? "" : " disabled") + '><option value="">— Sin asignar —</option>' + lawyers().map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === l.abogadoId ? " selected" : "") + ">" + esc(p.nombre) + "</option>"; }).join("") + "</select></div></div>" +
+        '<div class="grid2">' + inp("valor", "Honorarios acordados (COP)", l.valor ? Number(l.valor).toLocaleString("es-CO") : "", "text", "money") + inp("etiquetas", "Etiquetas (separadas por coma)", (l.etiquetas || []).join(", ")) + "</div>") +
       "</div>" +
       '<div class="crm-origin"><span>Origen</span>' + esc([l.origen && l.origen.formulario ? "Formulario: " + l.origen.formulario : "", l.origen && l.origen.utm_source ? "Campaña: " + [l.origen.utm_source, l.origen.utm_medium, l.origen.utm_campaign].filter(Boolean).join(" / ") : "", "Creado: " + A.fmtDate(l.createdAt)].filter(Boolean).join(" · ")) + "</div>" +
       '<div class="crm-danger"><button type="button" class="btn btn--line btn--sm" data-act="lost">Marcar como perdido</button><button type="button" class="btn btn--danger btn--sm" data-act="del">Eliminar cliente</button></div>';
     var t;
-    $$("#f-lead input, #f-lead select", b).forEach(function (el) {
+    function later() { clearTimeout(t); t = setTimeout(function () { save(); }, 700); }
+    bindPersona(b, l, later, function () {
+      // Vuelve a dibujar sin perder las secciones abiertas ni la posición
+      var open = $$("details", b).map(function (d) { return d.open; }), sc = b.closest(".crm-pb") || b.parentElement, top = sc ? sc.scrollTop : 0;
+      TABS.resumen(b, l);
+      $$("details", b).forEach(function (d, i) { if (i < open.length) d.open = open[i]; });
+      if (sc) sc.scrollTop = top;
+    });
+    $$('#f-lead [name="valor"], #f-lead [name="etiquetas"], #f-lead [name="abogadoId"]', b).forEach(function (el) {
       el.addEventListener(el.tagName === "SELECT" ? "change" : "input", function () {
         if (el.getAttribute("data-money") !== null) { var n = el.value.replace(/\D/g, ""); el.value = n ? Number(n).toLocaleString("es-CO") : ""; l.valor = Number(n) || 0; }
         else if (el.name === "etiquetas") l.etiquetas = el.value.split(",").map(function (x) { return x.trim(); }).filter(Boolean);
         else if (el.name === "abogadoId") { assignLead(l, el.value); return; }
-        else l[el.name] = el.value.trim();
-        $(".crm-ph__t b", host).textContent = l.nombre || "Nuevo cliente";
-        clearTimeout(t); t = setTimeout(function () { save(); }, 700);
+        later();
       });
     });
     bindNext(b, l);
@@ -283,6 +323,176 @@
       crm.db.leads = crm.db.leads.filter(function (x) { return x !== l; }); save("Cliente eliminado"); closePanel();
     });
   };
+
+  /* ---------- Formulario completo de datos del cliente ---------- */
+  var BLOQUES = [["reg", "🇨🇴 Registro civil colombiano"], ["ven", "🇻🇪 Partida venezolana"], ["padres", "👪 Padres"], ["suc", "🕊 Sucesión (causante)"], ["menor", "🧒 Menor representado"]];
+  function pv(l, path) { return path.split(".").reduce(function (o, k) { return o ? o[k] : undefined; }, l); }
+  function pf(l, path, label, o) {
+    o = o || {};
+    var val = pv(l, path) || "", req = o.req ? ' <i class="req">*</i>' : "";
+    var input = o.area ? '<textarea data-p="' + path + '" rows="' + (o.rows || 2) + '" placeholder="' + esc(o.ph || "") + '">' + esc(val) + "</textarea>"
+      : '<input type="' + (o.type || "text") + '" data-p="' + path + '" value="' + esc(val) + '" placeholder="' + esc(o.ph || "") + '"' + (o.im ? ' inputmode="' + o.im + '"' : "") + (o.ac ? ' autocomplete="' + o.ac + '"' : "") + (o.list ? ' list="' + o.list + '"' : "") + ">";
+    return '<div class="f" data-f="' + path + '"><label>' + label + req + "</label>" + input + (o.help ? "<small>" + o.help + "</small>" : "") + "</div>";
+  }
+  function docSelect(l, path, req) {
+    var cur = pv(l, path) || "CC", grp = { CO: "🇨🇴 Colombia", VE: "🇻🇪 Venezuela", XX: "🌎 Otros países" };
+    return '<div class="f" data-f="' + path + '"><label>Tipo de documento' + (req ? ' <i class="req">*</i>' : "") + '</label><select data-p="' + path + '">' + Object.keys(grp).map(function (g) {
+      return '<optgroup label="' + grp[g] + '">' + PP.TIPOS_DOC.filter(function (t) { return t[2] === g; }).map(function (t) { return '<option value="' + t[0] + '"' + (t[0] === cur ? " selected" : "") + ">" + esc(t[1]) + "</option>"; }).join("") + "</optgroup>";
+    }).join("") + "</select></div>";
+  }
+  function seg(l, path, label, opts, req) {
+    var cur = pv(l, path) || "";
+    return '<div class="f" data-f="' + path + '"><label>' + label + (req ? ' <i class="req">*</i>' : "") + '</label><div class="crm-seg" data-seg="' + path + '">' + opts.map(function (o) {
+      var v = Array.isArray(o) ? o[0] : o, t = Array.isArray(o) ? o[1] : o;
+      return '<button type="button" data-v="' + esc(v) + '" class="' + (v === cur ? "is-on" : "") + '">' + esc(t.charAt(0).toUpperCase() + t.slice(1)) + "</button>";
+    }).join("") + "</div></div>";
+  }
+  function paisSelect(l, path, label) {
+    var cur = pv(l, path) || "Colombia";
+    var names = PP.PAISES.map(function (p) { return p[2].split(",")[0].replace("EE. UU.", "Estados Unidos"); });
+    if (names.indexOf(cur) < 0) names.push(cur);
+    return '<div class="f" data-f="' + path + '"><label>' + label + '</label><select data-p="' + path + '">' + names.map(function (n) { return "<option" + (n === cur ? " selected" : "") + ">" + esc(n) + "</option>"; }).join("") + "<option>Otro</option></select></div>";
+  }
+  function phoneField(l, label) {
+    return '<div class="f" data-f="telefono"><label>' + label + ' <i class="req">*</i></label><div class="crm-phone"><select data-p="indicativo" aria-label="Indicativo del país">' +
+      PP.PAISES.map(function (p) { return '<option value="' + p[0] + '"' + (p[0] === l.indicativo ? " selected" : "") + ">" + p[1] + " +" + p[0] + "</option>"; }).join("") +
+      '</select><input type="tel" inputmode="tel" data-p="telefono" value="' + esc(l.telefono || "") + '" placeholder="' + (l.indicativo === "58" ? "414 123 4567" : "315 000 0000") + '"></div>' +
+      '<small class="crm-wa" id="p-wa"></small></div>';
+  }
+  function personaForm(l) {
+    var ec = PP.ESTADOS_CIVILES.map(function (e) { return [e, PP.estadoCivil({ genero: l.genero, estadoCivil: e })]; });
+    var bl = l.bloques || [];
+    function blk(id, title, html) { return bl.indexOf(id) > -1 ? '<div class="crm-blk"><div class="crm-blk__h"><b>' + title + '</b><button type="button" data-blkoff="' + id + '">Quitar</button></div>' + html + "</div>" : ""; }
+    return '<datalist id="dl-deptos">' + ["Norte de Santander", "Santander", "Cesar", "Bogotá D. C.", "Antioquia", "Atlántico", "Bolívar", "Valle del Cauca", "Cundinamarca", "Arauca", "La Guajira", "Magdalena", "Táchira", "Zulia", "Mérida", "Apure", "Barinas", "Lara", "Carabobo", "Distrito Capital", "Miranda", "Trujillo"].map(function (d) { return "<option>" + d + "</option>"; }).join("") + "</datalist>" +
+      sec("👤 Identificación",
+        '<div class="grid2">' + pf(l, "nombres", "Nombres", { req: 1, ac: "given-name", ph: "Ej. María José" }) + pf(l, "apellidos", "Apellidos", { req: 1, ac: "family-name", ph: "Ej. Pérez Contreras" }) + "</div>" +
+        '<div class="grid2">' + docSelect(l, "tipoDoc", 1) + pf(l, "cedula", "Número de documento", { req: 1, im: "numeric", help: '<span id="p-dochelp">' + docHelp(l.tipoDoc) + "</span>" }) + "</div>" +
+        '<div class="grid2">' + pf(l, "expedida", "Lugar de expedición", { req: 1, ph: "Ej. Cúcuta, Norte de Santander" }) + pf(l, "fechaExp", "Fecha de expedición", { type: "date" }) + "</div>" +
+        seg(l, "genero", "Género", PP.GENEROS, 1) +
+        seg(l, "nacionalidad", "Nacionalidad", PP.NACIONALIDADES)) +
+      sec("📞 Contacto y residencia",
+        '<div class="grid2">' + phoneField(l, "WhatsApp / celular") + pf(l, "telefono2", "Teléfono alterno (opcional)", { type: "tel", im: "tel" }) + "</div>" +
+        pf(l, "email", "Correo electrónico", { req: 1, type: "email", ac: "email", ph: "nombre@correo.com", help: "Se usa para notificaciones judiciales y para el poder por mensaje de datos (Ley 2213 de 2022)." }) +
+        pf(l, "direccion", "Dirección de residencia", { req: 1, ac: "street-address", ph: "Ej. Calle 10 # 4-25, apto 301" }) +
+        '<div class="grid2">' + pf(l, "barrio", "Barrio / sector") + pf(l, "ciudad", "Ciudad o municipio", { req: 1, ph: "Cúcuta" }) + "</div>" +
+        '<div class="grid2">' + pf(l, "depto", "Departamento / estado", { list: "dl-deptos", ph: "Norte de Santander" }) + paisSelect(l, "pais", "País de residencia") + "</div>") +
+      sec("🎂 Nacimiento y datos civiles",
+        '<div class="grid2">' + pf(l, "fechaNac", "Fecha de nacimiento", { req: 1, type: "date", help: '<span id="p-age"></span>' }) + pf(l, "lugarNac", "Lugar de nacimiento (ciudad o municipio)", { req: 1, ph: "Ej. San Cristóbal" }) + "</div>" +
+        '<div class="grid2">' + pf(l, "deptoNac", "Departamento / estado de nacimiento", { list: "dl-deptos", ph: "Ej. Táchira" }) + paisSelect(l, "paisNac", "País de nacimiento") + "</div>" +
+        '<div class="grid2"><div class="f" data-f="estadoCivil"><label>Estado civil</label><select data-p="estadoCivil"><option value="">Seleccione…</option>' + ec.map(function (e) { return '<option value="' + e[0] + '"' + (e[0] === l.estadoCivil ? " selected" : "") + ">" + esc(e[1].charAt(0).toUpperCase() + e[1].slice(1)) + "</option>"; }).join("") + "</select></div>" +
+        pf(l, "ocupacion", "Profesión u oficio") + "</div>", false) +
+      sec("📁 Datos del caso",
+        '<p class="muted">Active los datos que necesita este caso. Se usan para llenar el poder y los demás documentos.</p>' +
+        '<div class="crm-blkchips">' + BLOQUES.map(function (x) { return '<button type="button" data-blk="' + x[0] + '" class="' + (bl.indexOf(x[0]) > -1 ? "is-on" : "") + '">' + x[1] + "</button>"; }).join("") + "</div>" +
+        blk("reg", "🇨🇴 Registro civil de nacimiento colombiano",
+          '<div class="grid2">' + pf(l, "reg.nuip", "NUIP") + pf(l, "reg.serial", "Indicativo serial") + "</div>" +
+          '<div class="grid2">' + pf(l, "reg.oficina", "Oficina de registro", { ph: "Registraduría / Notaría 2.ª de Cúcuta" }) + pf(l, "reg.fechaInsc", "Fecha de inscripción", { type: "date" }) + "</div>" +
+          pf(l, "reg.lugarInscrito", "Lugar de nacimiento que aparece en el registro", { ph: "Ej. Cúcuta, Norte de Santander" })) +
+        blk("ven", "🇻🇪 Partida (acta) de nacimiento venezolana",
+          '<div class="grid2">' + pf(l, "ven.acta", "Número de acta") + pf(l, "ven.anio", "Año", { im: "numeric" }) + "</div>" +
+          '<div class="grid2">' + pf(l, "ven.folio", "Folio") + pf(l, "ven.tomo", "Tomo") + "</div>" +
+          pf(l, "ven.oficina", "Oficina o Unidad de Registro Civil", { ph: "Ej. Registro Civil de la parroquia La Concordia" }) +
+          '<div class="grid2">' + pf(l, "ven.municipio", "Municipio") + pf(l, "ven.estado", "Estado", { list: "dl-deptos", ph: "Táchira" }) + "</div>") +
+        blk("padres", "👪 Datos de los padres",
+          '<div class="grid2">' + pf(l, "padres.madre", "Nombre completo de la madre") + pf(l, "padres.madreDoc", "Documento de la madre") + "</div>" +
+          '<div class="grid2">' + pf(l, "padres.padre", "Nombre completo del padre") + pf(l, "padres.padreDoc", "Documento del padre") + "</div>") +
+        blk("suc", "🕊 Sucesión: datos del causante (persona fallecida)",
+          '<div class="grid2">' + pf(l, "suc.causante", "Nombre completo del causante") + pf(l, "suc.causanteDoc", "Documento del causante") + "</div>" +
+          '<div class="grid2">' + pf(l, "suc.fechaFall", "Fecha de fallecimiento", { type: "date" }) + pf(l, "suc.lugarFall", "Lugar de fallecimiento") + "</div>" +
+          '<div class="grid2">' + pf(l, "suc.domicilio", "Último domicilio del causante", { help: "Define la notaría o el juez competente." }) + pf(l, "suc.estadoCivil", "Estado civil del causante al morir", { ph: "Casado(a), viudo(a)…" }) + "</div>" +
+          '<div class="f" data-f="suc.calidad"><label>El cliente actúa como</label><select data-p="suc.calidad"><option value="">Seleccione…</option>' + DEF.calidades.map(function (c) { return "<option" + (c === (l.suc || {}).calidad ? " selected" : "") + ">" + esc(c) + "</option>"; }).join("") + "</select></div>" +
+          '<div class="grid2">' + pf(l, "suc.herederos", "Número de herederos", { im: "numeric" }) + seg(l, "suc.testamento", "¿Dejó testamento?", ["sí", "no", "no sabe"]) + "</div>" +
+          pf(l, "suc.bienes", "Bienes y deudas conocidos", { area: 1, ph: "Casa en Cúcuta (matrícula …), vehículo, cuentas, deudas…" })) +
+        blk("menor", "🧒 Menor de edad representado por el cliente",
+          '<div class="grid2">' + pf(l, "menor.nombre", "Nombre completo del menor") + pf(l, "menor.parentesco", "El cliente es su", { ph: "Madre, padre, tutor(a)" }) + "</div>" +
+          '<div class="grid2">' + docSelect(l, "menor.tipoDoc") + pf(l, "menor.doc", "Número de documento del menor") + "</div>" +
+          '<div class="grid2">' + pf(l, "menor.fechaNac", "Fecha de nacimiento del menor", { type: "date" }) + pf(l, "menor.lugarNac", "Lugar de nacimiento del menor") + "</div>"), false) +
+      sec("🔒 Autorización de datos personales",
+        '<label class="check"><input type="checkbox" data-p="datos1581.si"' + ((l.datos1581 || {}).si ? " checked" : "") + '><span>El cliente autorizó el tratamiento de sus datos personales (Ley 1581 de 2012)' +
+        ((l.datos1581 || {}).si ? "<small>Autorizado el " + esc((l.datos1581 || {}).fecha || "") + ((l.datos1581 || {}).via ? " · " + esc(l.datos1581.via) : "") + "</small>" : "<small>Puede generar la autorización desde Documentos → Otro documento.</small>") + "</span></label>", false);
+  }
+  function docHelp(code) {
+    return { CC: "Sin puntos ni espacios.", TI: "Para menores entre 7 y 17 años.", RC: "Para menores de 7 años: use el NUIP del registro civil.", CIV: "Solo el número, sin la V.", CIE: "Solo el número, sin la E.", PPT: "Número del Permiso por Protección Temporal.", PNV: "Use el número del acta." }[code || "CC"] || "";
+  }
+  /** Lista de datos obligatorios que faltan. */
+  function faltantes(l) {
+    var req = [["nombres", "Nombres"], ["apellidos", "Apellidos"], ["cedula", "Número de documento"], ["expedida", "Lugar de expedición"], ["genero", "Género"], ["telefono", "WhatsApp"], ["email", "Correo"], ["direccion", "Dirección"], ["ciudad", "Ciudad"], ["fechaNac", "Fecha de nacimiento"], ["lugarNac", "Lugar de nacimiento"]];
+    var bl = l.bloques || [];
+    if (bl.indexOf("reg") > -1) req.push(["reg.nuip", "NUIP o serial del registro"]);
+    if (bl.indexOf("ven") > -1) req.push(["ven.acta", "Número de acta venezolana"]);
+    if (bl.indexOf("suc") > -1) req.push(["suc.causante", "Nombre del causante"], ["suc.fechaFall", "Fecha de fallecimiento"]);
+    if (bl.indexOf("menor") > -1) req.push(["menor.nombre", "Nombre del menor"]);
+    return { total: req.length, falta: req.filter(function (r) { return r[0] === "reg.nuip" ? !pv(l, "reg.nuip") && !pv(l, "reg.serial") : !String(pv(l, r[0]) || "").trim(); }) };
+  }
+  function bindPersona(b, l, later, redraw) {
+    function status() {
+      var f = faltantes(l), ok = f.total - f.falta.length, pct = Math.round(ok / f.total * 100);
+      $("#p-complete", b).innerHTML = '<div class="crm-complete__h"><b>' + (pct === 100 ? "✅ Datos completos" : "Datos del cliente: " + pct + "%") + "</b><span>" + ok + " de " + f.total + "</span></div>" +
+        '<div class="crm-complete__bar"><i style="width:' + pct + '%"></i></div>' +
+        (f.falta.length ? '<div class="crm-complete__miss"><span>Faltan:</span>' + f.falta.map(function (x) { return '<button type="button" data-goto="' + x[0] + '">' + esc(x[1]) + "</button>"; }).join("") + "</div>" : "");
+      $$("[data-goto]", b).forEach(function (g) {
+        g.onclick = function () {
+          var fld = $('[data-f="' + g.getAttribute("data-goto") + '"]', b) || $('[data-f="' + g.getAttribute("data-goto").split(".")[0] + '"]', b);
+          if (!fld) return;
+          var d = fld.closest("details"); if (d) d.open = true;
+          fld.scrollIntoView({ behavior: "smooth", block: "center" });
+          var x = $("input, select, textarea, button", fld); if (x) setTimeout(function () { x.focus({ preventScroll: true }); }, 300);
+        };
+      });
+      var age = PP.edad(l.fechaNac), ag = $("#p-age", b);
+      if (ag) ag.innerHTML = age == null ? "" : age < 18 ? '<b class="crm-warn">⚠️ ' + age + " años: es menor de edad. Debe actuar por medio de su representante legal.</b>" : age + " años";
+      var wa = $("#p-wa", b);
+      if (wa) wa.innerHTML = l.telefono ? 'WhatsApp: <a href="https://wa.me/' + phoneOf(l) + '" target="_blank" rel="noopener">' + esc(PP.phoneText(l.indicativo, l.telefono)) + "</a>" : "";
+      $(".crm-ph__t b", host).textContent = l.nombre || "Nuevo cliente";
+    }
+    function setv(path, val) {
+      var p = path.split("."), o = l;
+      for (var i = 0; i < p.length - 1; i++) { o[p[i]] = o[p[i]] || {}; o = o[p[i]]; }
+      o[p[p.length - 1]] = val;
+      if (path === "nombres" || path === "apellidos") l.nombre = [l.nombres, l.apellidos].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+      if (path === "datos1581.si") l.datos1581.fecha = val ? today() : "";
+      if (path === "suc.causante" || path === "suc.fechaFall") { /* se usan al crear el poder */ }
+    }
+    $$("[data-p]", b).forEach(function (el) {
+      var path = el.getAttribute("data-p");
+      el.addEventListener(el.tagName === "SELECT" || el.type === "checkbox" || el.type === "date" ? "change" : "input", function () {
+        var val = el.type === "checkbox" ? el.checked : el.value;
+        if (el.type !== "checkbox" && el.tagName !== "SELECT") {
+          if (path === "nombres" || path === "apellidos" || path === "suc.causante" || path === "padres.madre" || path === "padres.padre" || path === "menor.nombre") {
+            // Mayúscula inicial en cada nombre, sin cambiar lo que escribe a mitad de palabra
+            var pos = el.selectionStart; val = val.replace(/(^|\s)([a-záéíóúñ])/g, function (m, a, c) { return a + c.toUpperCase(); }); if (val !== el.value) { el.value = val; el.setSelectionRange(pos, pos); }
+          }
+          if (path === "cedula" && /^(CC|TI|CE|CIV|CIE|RC)$/.test(l.tipoDoc || "CC")) { val = val.replace(/[^\d]/g, ""); if (val !== el.value) el.value = val; }
+          if (path === "telefono") { val = val.replace(/[^\d ]/g, ""); if (val !== el.value) el.value = val; }
+        }
+        if (path === "email") { el.classList.toggle("is-bad", !!val && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(val.trim())); }
+        setv(path, typeof val === "string" ? val.replace(/^\s+/, "") : val);
+        if (path === "tipoDoc") { var h = $("#p-dochelp", b); if (h) h.textContent = docHelp(val); }
+        if (path === "genero" || path === "servicio") { later(); return redraw(); }
+        status(); later();
+      });
+    });
+    $$("[data-seg]", b).forEach(function (g) {
+      g.addEventListener("click", function (e) {
+        var bt = e.target.closest("button"); if (!bt) return;
+        var path = g.getAttribute("data-seg"), v = bt.getAttribute("data-v"), cur = pv(l, path);
+        setv(path, cur === v ? "" : v);
+        $$("button", g).forEach(function (x) { x.classList.toggle("is-on", x === bt && cur !== v); });
+        if (path === "genero") { later(); return redraw(); }
+        status(); later();
+      });
+    });
+    $$("[data-blk]", b).forEach(function (bt) {
+      bt.onclick = function () {
+        var id = bt.getAttribute("data-blk"); l.bloques = l.bloques || [];
+        var i = l.bloques.indexOf(id); if (i > -1) l.bloques.splice(i, 1); else l.bloques.push(id);
+        later(); redraw();
+        var d = $$("details", b).find(function (x) { return /Datos del caso/.test(x.textContent.slice(0, 40)); }); if (d) d.open = true;
+      };
+    });
+    $$("[data-blkoff]", b).forEach(function (bt) { bt.onclick = function () { l.bloques = (l.bloques || []).filter(function (x) { return x !== bt.getAttribute("data-blkoff"); }); later(); redraw(); }; });
+    status();
+  }
   function inp(name, label, val, type, kind) {
     return '<div class="f"><label>' + label + '</label><input type="' + (type || "text") + '" name="' + name + '" value="' + esc(val || "") + '"' + (kind === "money" ? ' data-money inputmode="numeric"' : "") + "></div>";
   }
@@ -398,7 +608,7 @@
   function planFrom(name) { return (DEF.planes[name] || DEF.planes["50 / 50"]).map(function (r) { return { pct: r[0], concepto: r[1], momento: r[2] }; }); }
   function newDoc(l, tipo) {
     var d = { id: "D" + rid(10), tipo: tipo, numero: "(se asigna al guardar)", creado: now(), estado: "borrador", data: { fecha: today(), abogado: lawyerData(l.abogadoId), cuentas: defaultAccounts() } };
-    var cli = { nombre: l.nombre, cedula: l.cedula, expedida: l.expedida, direccion: l.direccion, ciudad: l.ciudad, telefono: l.telefono, email: l.email };
+    var cli = personaOf(l);
     var prop = lastDoc(l, "propuesta");
     if (tipo === "propuesta") applyTemplate(d.data, findTemplate(l.servicio) || plantillas()[0], l);
     if (tipo === "contrato") {
@@ -409,8 +619,9 @@
     if (tipo === "poder") {
       var tp0 = DEF.tiposPoder.find(function (t) { return /venezuela/i.test(l.servicio || "") ? t.id === "ven" : /suces/i.test(l.servicio || "") ? t.id === "suc-not" : t.id === "reg-admin"; }) || DEF.tiposPoder[0];
       var ab0 = lawyerData(l.abogadoId), u0 = lawyerById(l.abogadoId) || {};
-      Object.assign(d.data, { poderdantes: [{ nombre: l.nombre, cedula: l.cedula, expedida: l.expedida, ciudad: l.ciudad, telefono: l.telefono, email: l.email, direccion: l.direccion, tipoDoc: "cédula de ciudadanía", calidad: /suces/i.test(l.servicio || "") ? "hijo(a) y heredero(a) del causante" : "en nombre propio" }], emailApoderado: u0.email || cfg().firma.email || "", direccionApoderado: cfg().firma.direccion || "", ciudadFirma: cfg().firma.ciudad || "Cúcuta", asunto: {}, tratamiento: "Señor(a)" });
+      Object.assign(d.data, { poderdantes: [Object.assign(personaOf(l), { calidad: (l.suc && l.suc.calidad) || (/suces/i.test(l.servicio || "") ? "hijo(a) y heredero(a) del causante" : "en nombre propio") })], emailApoderado: u0.email || cfg().firma.email || "", direccionApoderado: cfg().firma.direccion || "", ciudadFirma: cfg().firma.ciudad || "Cúcuta", asunto: {}, tratamiento: "Señor(a)" });
       applyPoderType(d.data, tp0);
+      d.data.asunto = asuntoDe(l);
       d.data.abogado = ab0;
     }
     if (tipo === "acta") Object.assign(d.data, { servicio: l.servicio, requisitos: JSON.parse(JSON.stringify((l.requisitos || []).length ? l.requisitos : [])) });
@@ -679,7 +890,7 @@
       l.requisitos = (d.data.requisitos || []).map(function (r) { var ex = (l.requisitos || []).find(function (x) { return x.t === r.t; }); return { t: r.t, estado: ex && ex.estado !== "pendiente" ? ex.estado : r.estado }; });
     }
     if (d.tipo === "poder" && d.data.poderdantes && d.data.poderdantes[0]) { var p0 = d.data.poderdantes[0]; ["nombre", "cedula", "expedida", "ciudad", "email"].forEach(function (k) { if (p0[k] && !l[k]) l[k] = p0[k]; }); }
-    if (d.data.cliente) ["nombre", "cedula", "expedida", "direccion", "ciudad", "telefono", "email"].forEach(function (k) { if (d.data.cliente[k]) l[k] = d.data.cliente[k]; });
+    if (d.data.cliente) ["nombre", "cedula", "expedida", "direccion", "ciudad", "email"].forEach(function (k) { if (d.data.cliente[k] && !l[k]) l[k] = d.data.cliente[k]; });
     if (d.tipo === "contrato") l.valor = D.totals(d.data).total;
     if (send) { markSent(l, d, "WhatsApp"); waOpen(l, sendText(l, d)); }
     save(send ? "Guardado y enviado" : "Borrador guardado");
@@ -730,7 +941,9 @@
   }
   function lawyerPick(cur) { return '<div class="f"><label>Abogado responsable</label><select data-lawyer>' + lawyers().map(function (p) { return '<option value="' + esc(p.id) + '"' + (cur && (p.id === cur.id || p.nombre === cur.nombre) ? " selected" : "") + ">" + esc(p.nombre) + "</option>"; }).join("") + "</select></div>"; }
   function clientFields(c) {
-    return '<div class="grid2">' + text("cliente.nombre", "Nombre completo", c.nombre) + text("cliente.cedula", "Documento de identidad", c.cedula) + "</div>" +
+    return '<p class="muted">Se llenan con la ficha del cliente. Para completar o corregir datos, use la pestaña Resumen del cliente.</p>' +
+      '<div class="grid2">' + text("cliente.nombre", "Nombre completo", c.nombre) + '<div class="f"><label>Tipo de documento</label><select data-k="cliente.tipoDoc">' + PP.TIPOS_DOC.map(function (t) { return "<option" + (t[4] === c.tipoDoc ? " selected" : "") + ' value="' + esc(t[4]) + '">' + esc(t[1]) + "</option>"; }).join("") + "</select></div></div>" +
+      '<div class="grid2">' + text("cliente.cedula", "Número de documento", c.cedula) + "</div>" +
       '<div class="grid2">' + text("cliente.expedida", "Expedido en", c.expedida) + text("cliente.ciudad", "Ciudad de domicilio", c.ciudad) + "</div>" +
       text("cliente.direccion", "Dirección", c.direccion) +
       '<div class="grid2">' + text("cliente.telefono", "Teléfono", c.telefono) + text("cliente.email", "Correo", c.email) + "</div>";
@@ -870,7 +1083,7 @@
     if (!d.poderdantes) d.poderdantes = [Object.assign({ tipoDoc: "cédula de ciudadanía", calidad: "en nombre propio" }, d.cliente || {})];
     d.asunto = d.asunto || {};
     var DEST = ["Registraduría Nacional del Estado Civil", "Juez (Reparto)", "Juez de Familia (Reparto)", "Juez Civil Municipal (Reparto)", "Notario(a) del Círculo", "Autoridad competente del Registro Civil — República Bolivariana de Venezuela"];
-    var TIPOSDOC = ["cédula de ciudadanía", "cédula de extranjería", "pasaporte", "PPT", "cédula de identidad venezolana"];
+    var TIPOSDOC = PP.TIPOS_DOC.map(function (t) { return t[4]; });
     function tokens() { var t = {}; String((d.objeto || "") + " " + (d.referencia || "") + " " + (d.notas || "")).replace(/\{([A-Z_]+)\}/g, function (m, k) { t[k] = 1; }); return Object.keys(t); }
     function draw() {
       var tk = tokens();
@@ -882,7 +1095,10 @@
           return '<div class="crm-pd"><div class="crm-pd__h"><b>Poderdante ' + (i + 1) + "</b>" + (d.poderdantes.length > 1 ? '<button type="button" data-pdrm="' + i + '">Quitar</button>' : "") + "</div>" +
             '<div class="grid2">' + text("poderdantes." + i + ".nombre", "Nombre completo", p.nombre) + '<div class="f"><label>Tipo de documento</label><select data-pdsel="' + i + '" data-field="tipoDoc">' + TIPOSDOC.map(function (x) { return "<option" + (x === p.tipoDoc ? " selected" : "") + ">" + x + "</option>"; }).join("") + "</select></div></div>" +
             '<div class="grid2">' + text("poderdantes." + i + ".cedula", "Número de documento", p.cedula) + text("poderdantes." + i + ".expedida", "Expedido en", p.expedida) + "</div>" +
-            '<div class="grid2">' + text("poderdantes." + i + ".ciudad", "Domicilio (ciudad)", p.ciudad) + text("poderdantes." + i + ".email", "Correo para notificaciones", p.email) + "</div>" +
+            '<div class="grid2"><div class="f"><label>Género</label><select data-pdsel="' + i + '" data-field="genero">' + [["", "—"]].concat(PP.GENEROS).map(function (g) { return '<option value="' + g[0] + '"' + (g[0] === (p.genero || "") ? " selected" : "") + ">" + g[1] + "</option>"; }).join("") + "</select></div>" +
+            '<div class="f"><label>Estado civil</label><select data-pdsel="' + i + '" data-field="estadoCivil"><option value="">—</option>' + PP.ESTADOS_CIVILES.map(function (e) { return '<option value="' + e + '"' + (e === p.estadoCivil ? " selected" : "") + ">" + esc(PP.estadoCivil({ genero: p.genero, estadoCivil: e })) + "</option>"; }).join("") + "</select></div></div>" +
+            '<div class="grid2"><div class="f"><label>Nacionalidad</label><select data-pdsel="' + i + '" data-field="nacionalidad"><option value="">—</option>' + PP.NACIONALIDADES.map(function (n) { return "<option" + (n === p.nacionalidad ? " selected" : "") + ">" + n + "</option>"; }).join("") + "</select></div>" + text("poderdantes." + i + ".email", "Correo para notificaciones", p.email) + "</div>" +
+            '<div class="grid2">' + text("poderdantes." + i + ".direccion", "Dirección de residencia", p.direccion) + text("poderdantes." + i + ".ciudad", "Ciudad / municipio de domicilio", p.ciudad) + "</div>" +
             '<div class="f"><label>Actúa en calidad de</label>' + '<div class="crm-chipset" data-pdcal="' + i + '">' + DEF.calidades.map(function (c) { return '<button type="button" data-v="' + esc(c) + '" class="' + (p.calidad === c ? "is-on" : "") + '">' + esc(c) + "</button>"; }).join("") + '</div><input type="text" data-k="poderdantes.' + i + '.calidad" value="' + esc(p.calidad || "") + '"></div></div>';
         }).join("") + '<button type="button" class="crm-add" data-pdadd>＋ Agregar otro poderdante (p. ej., otro heredero)</button>') +
         sec((tk.length ? "4" : "3") + ". Destinatario y referencia", '<div class="f"><label>Dirigido a</label>' + chips("destinatario", DEST, d.destinatario) + '<input type="text" data-k="destinatario" value="' + esc(d.destinatario) + '"></div>' +
@@ -914,7 +1130,7 @@
     }, true);
     root.addEventListener("change", function (e) {
       var sel = e.target.closest("[data-pdsel]");
-      if (sel) { d.poderdantes[+sel.getAttribute("data-pdsel")][sel.getAttribute("data-field")] = sel.value; preview(); }
+      if (sel) { d.poderdantes[+sel.getAttribute("data-pdsel")][sel.getAttribute("data-field")] = sel.value; if (sel.getAttribute("data-field") === "genero") draw(); preview(); }
     });
     draw();
   };
@@ -1338,7 +1554,10 @@
     sheet(name + " · ¿Para qué cliente?",
       '<div class="form"><input type="search" class="crm-pick-q" placeholder="🔎 Buscar cliente por nombre, cédula o teléfono…">' +
       '<div class="crm-pick" id="pick-list"></div>' +
-      '<details class="crm-sec"><summary>＋ Cliente nuevo</summary><div class="crm-sec__b"><div class="grid2">' + fi("n_nombre", "Nombre completo", "") + fi("n_cedula", "Documento de identidad", "") + '</div><div class="grid2">' + fi("n_tel", "WhatsApp", "") + fi("n_ciudad", "Ciudad", "Cúcuta") + "</div>" +
+      '<details class="crm-sec"><summary>＋ Cliente nuevo</summary><div class="crm-sec__b"><div class="grid2">' + fi("n_nombres", "Nombres", "") + fi("n_apellidos", "Apellidos", "") + "</div>" +
+      '<div class="grid2"><div class="f"><label>Tipo de documento</label><select name="n_tipo">' + PP.TIPOS_DOC.map(function (t) { return '<option value="' + t[0] + '">' + esc(t[1]) + "</option>"; }).join("") + "</select></div>" + fi("n_cedula", "Número de documento", "") + "</div>" +
+      '<div class="f"><label>WhatsApp</label><div class="crm-phone"><select name="n_ind">' + PP.PAISES.map(function (x) { return '<option value="' + x[0] + '">' + x[1] + " +" + x[0] + "</option>"; }).join("") + '</select><input type="tel" name="n_tel" inputmode="tel" placeholder="315 000 0000"></div></div>' + fi("n_ciudad", "Ciudad", "Cúcuta") +
+      '<small class="muted">Los demás datos (dirección, nacimiento, género…) se completan después en la ficha del cliente.</small>' +
       '<button type="button" class="btn btn--gold btn--block" data-newcli>Crear cliente y continuar</button></div></details></div>',
       function (box) {
         function draw(q) {
@@ -1357,8 +1576,8 @@
           var p = e.target.closest("[data-pick]"); if (p) go(lead(p.getAttribute("data-pick")));
           if (e.target.closest("[data-newcli]")) {
             var g = function (n) { return box.querySelector("[name=" + n + "]").value.trim(); };
-            if (!g("n_nombre")) { A.toast("Escriba el nombre del cliente", true); return; }
-            var l = { id: "L" + Date.now().toString(36) + rid(4), createdAt: now(), etapaDesde: now(), nombre: g("n_nombre"), cedula: g("n_cedula"), telefono: g("n_tel"), ciudad: g("n_ciudad"), email: "", servicio: "", etapa: "contactado", abogadoId: isAdmin() ? "" : me().id, abogado: isAdmin() ? "" : me().nombre, valor: 0, etiquetas: ["Documento"], actividad: [], notas: [], docs: [], pagos: [], requisitos: [], archivos: [] };
+            if (!g("n_nombres")) { A.toast("Escriba los nombres del cliente", true); return; }
+            var l = { id: "L" + Date.now().toString(36) + rid(4), createdAt: now(), etapaDesde: now(), nombres: g("n_nombres"), apellidos: g("n_apellidos"), nombre: (g("n_nombres") + " " + g("n_apellidos")).trim(), tipoDoc: g("n_tipo"), cedula: g("n_cedula").replace(/[^\dA-Za-z-]/g, ""), indicativo: g("n_ind"), telefono: g("n_tel").replace(/[^\d ]/g, ""), ciudad: g("n_ciudad"), email: "", servicio: "", etapa: "contactado", abogadoId: isAdmin() ? "" : me().id, abogado: isAdmin() ? "" : me().nombre, valor: 0, etiquetas: ["Documento"], actividad: [], notas: [], docs: [], pagos: [], requisitos: [], archivos: [] };
             log(l, "creado", "Cliente creado desde Documentos.");
             crm.db.leads.unshift(l); save();
             go(l);

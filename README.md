@@ -107,6 +107,15 @@ Abra `https://ariangoconsultores.com/admin` (también aparece como **“Acceso�
 - **↩ Volver al texto automático** deshace los ajustes hechos a mano.
 - **⭐ Guardar como plantilla** (solo administrador): los nuevos documentos de ese tipo, y de ese modelo de poder, empiezan con el texto ajustado. Las plantillas aparecen en **📄 Documentos → Plantillas del bufete**, donde se pueden quitar para volver al modelo original.
 
+## Ficha del cliente (Clientes → Resumen)
+
+- **Identificación:** nombres y apellidos por separado, tipo de documento colombiano (C.C., T.I., registro civil con NUIP, C.E., PPT, PEP, pasaporte) o venezolano (cédula V o E, pasaporte, partida de nacimiento), número, lugar y fecha de expedición, género y nacionalidad.
+- **Contacto y residencia:** WhatsApp con **indicativo del país** (Colombia, Venezuela y 28 países más), teléfono alterno, correo, dirección, barrio, ciudad, departamento o estado y país.
+- **Nacimiento y datos civiles:** fecha (calcula la edad y avisa si es menor de edad), lugar, departamento o estado y país de nacimiento, estado civil y profesión.
+- **Datos del caso**, que se activan según el trámite: registro civil colombiano (NUIP, serial, oficina), partida venezolana (acta, folio, tomo, año, oficina, municipio, estado), padres, sucesión (causante, fallecimiento, último domicilio, herederos, testamento, bienes) y menor representado.
+- Una barra muestra **qué datos faltan**; al tocar uno, lleva directo al campo.
+- El poder y los demás documentos se llenan solos con estos datos, con el texto ajustado al género («identificada», «domiciliada», «casada»).
+
 ## Abogados y accesos
 
 - **Panel → ⚖️ Abogados y accesos** (solo administrador): cree una cuenta por abogado con nombre, correo, contraseña inicial, cédula, tarjeta profesional y WhatsApp. El panel le arma el mensaje con los datos de acceso para enviárselo.

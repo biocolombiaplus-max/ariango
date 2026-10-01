@@ -757,3 +757,18 @@ body.no-scroll { overflow: hidden; }
   .pain-grid { grid-template-columns: 1fr; }
   .header__actions .btn--sm { display: none; }
 }
+
+/* ---------- Portada con foto en celular: foto arriba, estilo portada de revista ---------- */
+@media (max-width: 760px) {
+  .hero.has-bg { --hero-ph: 64vh; --hero-ph: 64svh; padding-top: 0; }
+  .hero.has-bg::before { inset: 0 0 auto 0; height: var(--hero-ph); }
+  .hero.has-bg::after {
+    background: linear-gradient(180deg, rgba(4,12,26,.45) 0, rgba(4,12,26,0) calc(var(--hero-ph) * .16), rgba(7,19,38,.08) calc(var(--hero-ph) * .36), rgba(7,19,38,.72) calc(var(--hero-ph) * .6), rgba(7,19,38,.93) calc(var(--hero-ph) * .8), #071326 calc(var(--hero-ph) * .97), #071326 100%);
+  }
+  .hero.has-bg .orb, .hero.has-bg .hero__mark, .hero.has-bg .hero__bg::before { display: none; }
+  .hero.has-bg .hero__grid { padding-top: calc(var(--hero-ph) * .52); }
+  .hero.has-bg .pill { background: rgba(4,12,26,.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .hero.has-bg .hero__title { text-shadow: 0 2px 18px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.4); }
+  .hero.has-bg .hero__lead { text-shadow: 0 1px 10px rgba(0,0,0,.45); }
+  .hero.has-bg .hero__flag { height: var(--hero-ph); bottom: auto; }
+}

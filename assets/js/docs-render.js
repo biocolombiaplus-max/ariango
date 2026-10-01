@@ -248,7 +248,7 @@
       '<div class="acd-parties"><div><span class="acd-kicker">La firma</span><b>' + esc(f.razon || f.nombre || "Ariango Consultores") + "</b><p>" +
       esc([f.nit ? "NIT " + f.nit : "", "Representada por " + rep + (f.cedulaRep ? ", C.C. " + f.cedulaRep : ""), f.tarjeta ? "T.P. " + f.tarjeta : "", f.direccion].filter(Boolean).join(" · ")) + "</p></div>" +
       '<div><span class="acd-kicker">El cliente</span><b>' + esc(cli.nombre) + "</b><p>" +
-      esc([cli.cedula ? "Documento " + cli.cedula + (cli.expedida ? " de " + cli.expedida : "") : "", cli.direccion, cli.ciudad, cli.telefono, cli.email].filter(Boolean).join(" · ")) + "</p></div></div>" +
+      esc([cli.cedula ? P.docCorto(cli.tipoDoc) + " " + cli.cedula + (cli.expedida ? " de " + cli.expedida : "") : "", cli.direccion, cli.ciudad, cli.telefono, cli.email].filter(Boolean).join(" · ")) + "</p></div></div>" +
       '<p class="acd-intro">Entre los suscritos, identificados como aparece arriba, quienes en adelante se denominarán <b>LA FIRMA</b> y <b>EL CLIENTE</b>, se celebra el presente contrato de prestación de servicios profesionales, que se regirá por las siguientes cláusulas:</p>' +
       '<div class="acd-clauses">' + cl.map(function (c, i) { return '<p class="acd-clause"><b>' + (ORD[i] || i + 1) + ". " + esc(c.titulo) + ".</b> " + para(fill(c.texto, d, ctx)) + "</p>"; }).join("") + "</div>" +
       ((ctx.cuentas || []).length ? '<h3 class="acd-h3">Cuentas autorizadas para pagos</h3>' + accountsHtml(ctx.cuentas) : "") +
@@ -299,8 +299,12 @@
     var fac = (d.facultades || []).join(", ");
     var forma = FORMAS_PODER[d.forma || "datos"] || FORMAS_PODER.datos;
     function persona(p) {
-      return "<b>" + esc(p.nombre || "____________________") + "</b>, mayor de edad, identificado(a) con " + esc(p.tipoDoc || "cédula de ciudadanía") + " N.º <b>" + esc(p.cedula || "__________") + "</b>" +
-        (p.expedida ? " expedida en " + esc(p.expedida) : "") + (p.ciudad ? ", domiciliado(a) en " + esc(p.ciudad) : "") + (p.calidad ? ", actuando en calidad de " + esc(p.calidad) : "");
+      var dt = P.docTexto(p.tipoDoc), exp = /^(pasaporte|registro|permiso|documento)/i.test(dt) ? "expedido" : "expedida";
+      var nac = p.nacionalidad && p.nacionalidad !== "otra" ? p.nacionalidad : "";
+      var dom = [p.direccion, p.ciudad].filter(Boolean).join(", ");
+      return "<b>" + esc(p.nombre || "____________________") + "</b>, mayor de edad" + (nac ? ", de nacionalidad " + esc(nac) : "") + (p.estadoCivil ? ", " + esc(P.estadoCivil(p)) : "") +
+        ", " + P.g(p, "identificad") + " con " + esc(dt) + " N.º <b>" + esc(p.cedula || "__________") + "</b>" +
+        (p.expedida ? " " + exp + " en " + esc(p.expedida) : "") + (dom ? ", " + P.g(p, "domiciliad") + " en " + esc(dom) : "") + (p.calidad ? (/^en nombre propio$/i.test(p.calidad) ? ", actuando en nombre propio" : /^(padre|madre|representante)/i.test(p.calidad) ? ", actuando como " + esc(p.calidad) : ", actuando en calidad de " + esc(p.calidad)) : "");
     }
     var who = plural ? "Los suscritos " + pds.map(persona).join("; ") + ", por medio del presente escrito <b>conferimos</b>" : persona(pds[0]) + ", por medio del presente escrito <b>confiero</b>";
     var signer = doc.firma ? doc.firma : null;
@@ -413,6 +417,8 @@
   var VARS = {
     NUMERO: "Número del documento", FECHA: "Fecha del documento", CLIENTE: "Nombre del cliente / poderdante", CEDULA: "Documento del cliente",
     TELEFONO_CLIENTE: "Teléfono del cliente", EMAIL_CLIENTE: "Correo del cliente", CIUDAD_CLIENTE: "Ciudad del cliente",
+    TIPO_DOC: "Tipo de documento del cliente", EXPEDIDA: "Lugar de expedición del documento", DIRECCION_CLIENTE: "Dirección del cliente", NACIONALIDAD: "Nacionalidad del cliente",
+    ESTADO_CIVIL: "Estado civil del cliente", FECHA_NACIMIENTO: "Fecha de nacimiento del cliente", LUGAR_NACIMIENTO: "Lugar de nacimiento del cliente",
     ABOGADO: "Nombre del abogado", CC_ABOGADO: "Cédula del abogado", TP_ABOGADO: "Tarjeta profesional del abogado", EMAIL_APODERADO: "Correo del apoderado",
     SERVICIO: "Servicio", TOTAL: "Valor total", TOTAL_LETRAS: "Valor total en letras",
     DESTINATARIO: "Destinatario", REFERENCIA: "Referencia", OBJETO: "Objeto del poder", FACULTADES: "Facultades", RADICADO: "Radicado"
@@ -421,7 +427,9 @@
     var d = doc.data || {};
     var p = (d.poderdantes && d.poderdantes[0]) || d.cliente || {};
     var c = ctx.cliente || {};
-    return { nombre: p.nombre || c.nombre, cedula: p.cedula || c.cedula, telefono: p.telefono || c.telefono, email: p.email || c.email, ciudad: p.ciudad || c.ciudad };
+    function k(x) { return p[x] || c[x]; }
+    return { nombre: k("nombre"), cedula: k("cedula"), telefono: k("telefono"), email: k("email"), ciudad: k("ciudad"), tipoDoc: k("tipoDoc"), expedida: k("expedida"), direccion: k("direccion"),
+      nacionalidad: k("nacionalidad"), estadoCivil: k("estadoCivil"), genero: k("genero"), fechaNac: k("fechaNac"), lugarNac: k("lugarNac") };
   }
   /** Valores actuales de los datos variables de un documento. */
   function vars(doc, ctx) {
@@ -431,6 +439,8 @@
     var v = {
       NUMERO: doc.numero, FECHA: fecha(d.fecha || doc.creado),
       CLIENTE: cli.nombre, CEDULA: cli.cedula, TELEFONO_CLIENTE: cli.telefono, EMAIL_CLIENTE: cli.email, CIUDAD_CLIENTE: cli.ciudad,
+      TIPO_DOC: cli.cedula ? P.docTexto(cli.tipoDoc) : "", EXPEDIDA: cli.expedida, DIRECCION_CLIENTE: cli.direccion, NACIONALIDAD: cli.nacionalidad, ESTADO_CIVIL: P.estadoCivil(cli),
+      FECHA_NACIMIENTO: P.fechaLarga(cli.fechaNac), LUGAR_NACIMIENTO: cli.lugarNac,
       ABOGADO: ab.nombre || (doc.tipo === "poder" ? f.representante : ""), CC_ABOGADO: ab.cedula || (doc.tipo === "poder" ? f.cedulaRep : ""), TP_ABOGADO: ab.tarjeta || (doc.tipo === "poder" ? f.tarjeta : ""),
       SERVICIO: d.servicio, TOTAL: tot ? money(tot) : "", TOTAL_LETRAS: tot ? letras(tot) : ""
     };
@@ -595,5 +605,77 @@
     { id: "ven", nombre: "Trámite en Venezuela (Registro Civil)", forma: "apostilla", destinatario: "Autoridad competente del Registro Civil — República Bolivariana de Venezuela", ciudadDest: "", referencia: "Nulidad / rectificación del acta de nacimiento N.º {ACTA}", objeto: "solicite y tramite la nulidad o rectificación del acta de nacimiento N.º {ACTA} inserta en el Registro Civil de {LUGAR}, Venezuela, y realice todas las gestiones necesarias ante el Registro Civil, el SAIME, los tribunales y demás autoridades venezolanas", facultades: ["recibir", "desistir", "sustituir", "reasumir", "renunciar", "solicitar y aportar pruebas", "interponer recursos", "notificarse", "radicar y retirar documentos", "solicitar copias y certificados"] },
     { id: "admin", nombre: "Trámites administrativos y derechos de petición", forma: "datos", destinatario: "Entidades públicas y privadas", ciudadDest: "", referencia: "Poder especial para trámites administrativos", objeto: "presente solicitudes y derechos de petición, solicite y retire copias, certificados y documentos, y adelante los trámites administrativos relacionados con {ASUNTO}", facultades: ["recibir", "sustituir", "reasumir", "renunciar", "notificarse", "radicar y retirar documentos", "solicitar copias y certificados", "presentar derechos de petición", "interponer recursos"] }
   ];
-  window.ACDocs = { render: render, base: function (doc, ctx) { return base(doc, ctx || {}); }, vars: vars, VARS: VARS, readZones: readZones, editable: editable, clean: clean, ZONAS: ZONAS, pdf: pdf, ETAPAS: ETAPAS, TIPOS: TIPOS, PREFIJO: PREFIJO, money: money, letras: letras, fecha: fecha, totals: totals, planRows: planRows, DEFAULTS: DEFAULTS, esc: esc };
+  /* ---------- Datos de las personas (Colombia y Venezuela) ---------- */
+  var P = {
+    // [código, nombre, país, abreviatura, texto legal]
+    TIPOS_DOC: [
+      ["CC", "Cédula de ciudadanía", "CO", "C.C.", "cédula de ciudadanía"],
+      ["TI", "Tarjeta de identidad", "CO", "T.I.", "tarjeta de identidad"],
+      ["RC", "Registro civil de nacimiento (NUIP)", "CO", "NUIP", "registro civil de nacimiento con NUIP"],
+      ["CE", "Cédula de extranjería", "CO", "C.E.", "cédula de extranjería"],
+      ["PPT", "Permiso por Protección Temporal (PPT)", "CO", "PPT", "Permiso por Protección Temporal (PPT)"],
+      ["PEP", "Permiso Especial de Permanencia (PEP)", "CO", "PEP", "Permiso Especial de Permanencia (PEP)"],
+      ["PA", "Pasaporte colombiano", "CO", "Pasaporte", "pasaporte colombiano"],
+      ["CIV", "Cédula de identidad venezolana (V)", "VE", "C.I. V-", "cédula de identidad venezolana"],
+      ["CIE", "Cédula de identidad venezolana de extranjero (E)", "VE", "C.I. E-", "cédula de identidad venezolana de extranjero"],
+      ["PAV", "Pasaporte venezolano", "VE", "Pasaporte", "pasaporte venezolano"],
+      ["PNV", "Partida de nacimiento venezolana (menor sin cédula)", "VE", "Partida", "partida de nacimiento venezolana"],
+      ["PAX", "Pasaporte de otro país", "XX", "Pasaporte", "pasaporte"],
+      ["DIX", "Documento de identidad de otro país", "XX", "Doc.", "documento de identidad"]
+    ],
+    // [indicativo, bandera, país]
+    PAISES: [
+      ["57", "🇨🇴", "Colombia"], ["58", "🇻🇪", "Venezuela"], ["1", "🇺🇸", "EE. UU., Canadá, Puerto Rico, R. Dominicana"], ["34", "🇪🇸", "España"],
+      ["593", "🇪🇨", "Ecuador"], ["51", "🇵🇪", "Perú"], ["56", "🇨🇱", "Chile"], ["507", "🇵🇦", "Panamá"], ["52", "🇲🇽", "México"],
+      ["54", "🇦🇷", "Argentina"], ["55", "🇧🇷", "Brasil"], ["506", "🇨🇷", "Costa Rica"], ["591", "🇧🇴", "Bolivia"], ["595", "🇵🇾", "Paraguay"],
+      ["598", "🇺🇾", "Uruguay"], ["502", "🇬🇹", "Guatemala"], ["503", "🇸🇻", "El Salvador"], ["504", "🇭🇳", "Honduras"], ["505", "🇳🇮", "Nicaragua"],
+      ["53", "🇨🇺", "Cuba"], ["297", "🇦🇼", "Aruba"], ["599", "🇨🇼", "Curazao"], ["39", "🇮🇹", "Italia"], ["351", "🇵🇹", "Portugal"],
+      ["33", "🇫🇷", "Francia"], ["49", "🇩🇪", "Alemania"], ["44", "🇬🇧", "Reino Unido"], ["41", "🇨🇭", "Suiza"], ["31", "🇳🇱", "Países Bajos"], ["61", "🇦🇺", "Australia"]
+    ],
+    GENEROS: [["F", "Femenino"], ["M", "Masculino"], ["X", "Otro / prefiere no decir"]],
+    NACIONALIDADES: ["colombiana", "venezolana", "colombiana y venezolana", "otra"],
+    ESTADOS_CIVILES: ["soltero", "casado", "en unión marital de hecho", "separado", "divorciado", "viudo"]
+  };
+  function tipoDoc(code) { return P.TIPOS_DOC.find(function (t) { return t[0] === code || t[1].toLowerCase() === String(code || "").toLowerCase(); }); }
+  /** Nombre del documento para el texto legal (en minúscula). */
+  P.docTexto = function (code) { var t = tipoDoc(code); return t ? t[4] : code ? String(code) : "cédula de ciudadanía"; };
+  P.docCorto = function (code) { var t = tipoDoc(code); return t ? t[3] : "Doc."; };
+  P.tipoDoc = tipoDoc;
+  /** Termina una palabra según el género: g(p, "identificad") → identificado / identificada / identificado(a). */
+  P.g = function (p, raiz) { var x = (p && p.genero) || ""; return raiz + (x === "F" ? "a" : x === "M" ? "o" : "o(a)"); };
+  P.estadoCivil = function (p) {
+    var e = (p && p.estadoCivil) || ""; if (!e) return "";
+    if (/^(soltero|casado|separado|divorciado|viudo)$/.test(e)) return P.g(p, e.slice(0, -1));
+    return e;
+  };
+  P.edad = function (f) {
+    if (!f) return null; var b = new Date(f + "T12:00:00"); if (isNaN(b)) return null;
+    var n = new Date(), a = n.getFullYear() - b.getFullYear();
+    if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--;
+    return a;
+  };
+  /** Separa "+57 315 000 0000" en indicativo y número. */
+  P.splitPhone = function (t) {
+    var raw = String(t || "").trim(), d = raw.replace(/\D/g, "");
+    if (/^\+/.test(raw)) {
+      var codes = P.PAISES.map(function (x) { return x[0]; }).sort(function (a, b) { return b.length - a.length; });
+      for (var i = 0; i < codes.length; i++) if (d.indexOf(codes[i]) === 0) return { ind: codes[i], num: d.slice(codes[i].length) };
+    }
+    if (d.length === 12 && /^57/.test(d)) return { ind: "57", num: d.slice(2) };
+    return { ind: "", num: d };
+  };
+  /** Teléfono internacional en dígitos para WhatsApp. */
+  P.phoneDigits = function (ind, num) {
+    var sp = P.splitPhone(num);
+    var n = sp.num.replace(/^0+/, ""), i = sp.ind || String(ind || "").replace(/\D/g, "");
+    if (!i) i = n.length === 10 && n[0] === "3" ? "57" : n.length === 10 && /^4/.test(n) ? "58" : "";
+    return i + n;
+  };
+  P.phoneText = function (ind, num) {
+    var sp = P.splitPhone(num), i = sp.ind || String(ind || "").replace(/\D/g, "");
+    return (i ? "+" + i + " " : "") + sp.num.replace(/^0+(?=\d{9,})/, "");
+  };
+  P.fechaLarga = function (f) { return f ? fecha(f) : ""; };
+
+  window.ACDocs = { P: P, render: render, base: function (doc, ctx) { return base(doc, ctx || {}); }, vars: vars, VARS: VARS, readZones: readZones, editable: editable, clean: clean, ZONAS: ZONAS, pdf: pdf, ETAPAS: ETAPAS, TIPOS: TIPOS, PREFIJO: PREFIJO, money: money, letras: letras, fecha: fecha, totals: totals, planRows: planRows, DEFAULTS: DEFAULTS, esc: esc };
 })();

@@ -451,7 +451,7 @@
         var name = (SECTIONS.find(function (x) { return x[0] === key; }) || [])[1];
         var r = await window.ACFrame.open({
           url: b.url, title: "Fondo: " + (name || key), separate: true, value: { d: b.enc, m: b.encM },
-          frames: [{ id: "d", label: "💻 Computador", ratio: 16 / 9 }, { id: "m", label: "📱 Celular", ratio: 1 / 2 }],
+          frames: [{ id: "d", label: "💻 Computador", ratio: 16 / 9 }, { id: "m", label: /inicio$/.test(key) ? "📱 Celular (foto de portada)" : "📱 Celular", ratio: /inicio$/.test(key) ? 390 / 540 : 1 / 2 }],
           overlay: dark ? "rgba(7,19,38," + ov + ")" : "rgba(250,246,239," + ov + ")", fill: dark ? "#0A1A30" : "#FAF6EF"
         });
         if (!r) return;
