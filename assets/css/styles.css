@@ -115,9 +115,12 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .section--navy .h2 { color: var(--white); }
 [data-bg].has-bg { background-image: none; isolation: isolate; }
 [data-bg].has-bg { overflow: clip; }
-[data-bg].has-bg::before { content: ""; position: absolute; inset: 0; z-index: -2; background: var(--bg-img) var(--bg-x, 50%) var(--bg-y, 50%) / var(--bg-fit, cover) no-repeat var(--bg-fill, transparent); transform: scale(var(--bg-z, 1)); transform-origin: var(--bg-x, 50%) var(--bg-y, 50%); }
+/* Foto de fondo: capa nítida (con encuadre) sobre la misma foto desenfocada, que rellena si se aleja */
+.bg-media { position: absolute; inset: 0; z-index: -2; overflow: hidden; pointer-events: none; background: var(--bg-fill, #0A1A30); }
+.bg-media__blur { position: absolute; inset: -60px; background: var(--bg-img) center / cover no-repeat; filter: blur(30px) saturate(1.15) brightness(.72); }
+.bg-media__img { position: absolute; inset: 0; box-shadow: 0 30px 70px -10px rgba(0,0,0,.55); background: var(--bg-img) var(--bg-x, 50%) var(--bg-y, 50%) / var(--bg-fit, cover) no-repeat; transform: scale(var(--bg-z, 1)); transform-origin: var(--bg-x, 50%) var(--bg-y, 50%); }
 @media (max-width: 760px) {
-  [data-bg].has-bg::before { background-position: var(--bg-mx, 50%) var(--bg-my, 50%); background-size: var(--bg-mfit, cover); transform: scale(var(--bg-mz, 1)); transform-origin: var(--bg-mx, 50%) var(--bg-my, 50%); }
+  .bg-media__img { background-position: var(--bg-mx, 50%) var(--bg-my, 50%); background-size: var(--bg-mfit, cover); transform: scale(var(--bg-mz, 1)); transform-origin: var(--bg-mx, 50%) var(--bg-my, 50%); }
 }
 [data-bg].has-bg::after { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--bg-overlay, rgba(10,26,48,.8)); pointer-events: none; }
 .section.has-bg { background-color: transparent; }
@@ -760,8 +763,8 @@ body.no-scroll { overflow: hidden; }
 
 /* ---------- Portada con foto en celular: foto arriba, estilo portada de revista ---------- */
 @media (max-width: 760px) {
-  .hero.has-bg { --hero-ph: 64vh; --hero-ph: 64svh; padding-top: 0; }
-  .hero.has-bg::before { inset: 0 0 auto 0; height: var(--hero-ph); }
+  .hero.has-bg { --hero-ph: calc(var(--bg-mh, 64) * 1vh); --hero-ph: calc(var(--bg-mh, 64) * 1svh); padding-top: 0; }
+  .hero.has-bg > .bg-media { bottom: auto; height: var(--hero-ph); }
   .hero.has-bg::after {
     background: linear-gradient(180deg, rgba(4,12,26,.45) 0, rgba(4,12,26,0) calc(var(--hero-ph) * .16), rgba(7,19,38,.08) calc(var(--hero-ph) * .36), rgba(7,19,38,.72) calc(var(--hero-ph) * .6), rgba(7,19,38,.93) calc(var(--hero-ph) * .8), #071326 calc(var(--hero-ph) * .97), #071326 100%);
   }

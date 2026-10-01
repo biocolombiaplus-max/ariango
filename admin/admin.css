@@ -223,7 +223,7 @@ body:not(.is-lawyer) [data-lawyer-only] { display: none !important; }
 .frm__f.is-cur .frm__win { box-shadow: 0 0 0 3px var(--gold-500); }
 .frm__win.is-drag { cursor: grabbing; }
 .frm__img, .frm__ov, .frm__grid { position: absolute; inset: 0; pointer-events: none; }
-.frm__img { background-repeat: no-repeat; }
+.frm__img { background-repeat: no-repeat; box-shadow: 0 16px 36px -8px rgba(0,0,0,.5); }
 .frm__grid { background-image: linear-gradient(90deg, transparent calc(33.33% - .5px), rgba(255,255,255,.35) 0 calc(33.33% + .5px), transparent 0 calc(66.66% - .5px), rgba(255,255,255,.35) 0 calc(66.66% + .5px), transparent 0), linear-gradient(transparent calc(33.33% - .5px), rgba(255,255,255,.35) 0 calc(33.33% + .5px), transparent 0 calc(66.66% - .5px), rgba(255,255,255,.35) 0 calc(66.66% + .5px), transparent 0); opacity: 0; transition: opacity .2s; }
 .frm__win:hover .frm__grid, .frm__win.is-drag .frm__grid { opacity: 1; }
 .frm__same { display: flex; gap: 10px; align-items: center; font-weight: 600; color: var(--navy-800); }
@@ -256,3 +256,8 @@ body:not(.is-lawyer) [data-lawyer-only] { display: none !important; }
 .exp-box__prev span { font-size: .6rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; line-height: 1.25; }
 .exp-box__f { display: grid; gap: 6px; min-width: 0; }
 @media (max-width: 520px) { .exp-box { grid-template-columns: 1fr; } .exp-box__prev { min-height: 0; grid-auto-flow: column; gap: 10px; justify-content: center; } }
+.frm__blur { position: absolute; inset: -30px; background-size: cover; background-position: center; filter: blur(18px) saturate(1.15) brightness(.72); pointer-events: none; }
+.frm__zoom { display: grid; grid-template-columns: 40px 1fr 40px; gap: 8px; align-items: center; }
+.frm__zoom button { height: 36px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; font-size: 1.1rem; font-weight: 800; color: var(--navy-800); cursor: pointer; }
+.frm__zl { display: flex; justify-content: space-between; color: var(--muted); font-size: .72rem; font-weight: 600; }
+.frm__rg[hidden] { display: none; }

@@ -12,7 +12,7 @@
   function norm(e) {
     e = e || {};
     var n = function (v, a, b, d) { v = Number(v); return isFinite(v) ? clamp(v, a, b) : d; };
-    return { x: n(e.x, 0, 100, 50), y: n(e.y, 0, 100, 50), z: n(e.z, 1, 4, 1), fit: e.fit === "contain" ? "contain" : "cover" };
+    return { x: n(e.x, 0, 100, 50), y: n(e.y, 0, 100, 50), z: n(e.z, 0.3, 4, 1), fit: e.fit === "contain" ? "contain" : "cover", h: n(e.h, 40, 95, 64) };
   }
 
   var box = document.createElement("div");
@@ -30,15 +30,16 @@
         '<div class="frm__bg" data-fx="cancel"></div><div class="frm__p" role="dialog" aria-modal="true" aria-label="Ajustar foto">' +
         '<header class="frm__h"><div><b>✂️ Ajustar la foto</b><span>' + esc(o.title || "") + '</span></div><button type="button" class="frm__x" data-fx="cancel" aria-label="Cerrar">✕</button></header>' +
         '<div class="frm__b">' +
-        '<p class="frm__hint">👆 <b>Arrastre la foto</b> para moverla. Use <b>Acercar</b> para agrandarla o <b>Foto completa</b> para que se vea entera, sin recortes. La vista es aproximada: revise el resultado en el sitio después de publicar.</p>' +
+        '<p class="frm__hint">👆 <b>Arrastre la foto</b> para moverla. Con <b>Tamaño</b> puede <b>alejarla</b> (menos de 100%) para que se vean las personas completas; el espacio que sobra se rellena con la misma foto desenfocada. La vista es aproximada: revise el resultado en el sitio después de publicar.</p>' +
         '<div class="frm__frames">' + frames.map(function (f) {
-          return '<div class="frm__f" data-f="' + f.id + '" style="--r:' + f.ratio + '"><span class="frm__lab">' + esc(f.label) + '</span><div class="frm__win"><div class="frm__img"></div>' + (o.overlay ? '<div class="frm__ov"></div>' : "") + '<div class="frm__grid"></div></div></div>';
+          return '<div class="frm__f" data-f="' + f.id + '" style="--r:' + f.ratio + '"><span class="frm__lab">' + esc(f.label) + '</span><div class="frm__win">' + (o.blur ? '<div class="frm__blur"></div>' : "") + '<div class="frm__img"></div>' + (o.overlay ? '<div class="frm__ov"></div>' : "") + '<div class="frm__grid"></div></div></div>';
         }).join("") + "</div>" +
         (sep ? '<label class="frm__same"><input type="checkbox" id="frm-same"' + (same ? " checked" : "") + '><span>Usar el mismo ajuste en computador y celular</span></label>' +
           '<div class="frm__tabs" id="frm-tabs"><button type="button" data-cur="d">💻 Ajustar computador</button><button type="button" data-cur="m">📱 Ajustar celular</button></div>' : "") +
         '<div class="frm__ctl">' +
         '<div class="frm__modes"><button type="button" data-fit="cover"><b>Llenar el espacio</b><small>La foto cubre todo; se recortan los bordes</small></button><button type="button" data-fit="contain"><b>Foto completa</b><small>Se ve toda la foto, sin recortes</small></button></div>' +
-        '<label class="frm__rg"><span>🔍 Acercar <b id="frm-zv"></b></span><input type="range" id="frm-z" min="1" max="3" step="0.01"></label>' +
+        '<div class="frm__rg"><span>🔍 Tamaño <b id="frm-zv"></b></span><div class="frm__zoom"><button type="button" data-zs="-1" aria-label="Alejar">－</button><input type="range" id="frm-z" min="' + (o.blur ? 0.3 : 0.6) + '" max="3" step="0.01" aria-label="Tamaño de la foto"><button type="button" data-zs="1" aria-label="Acercar">＋</button></div><small class="frm__zl"><span>◀ Más lejos</span><span>Más cerca ▶</span></small></div>' +
+        (o.heightFor ? '<label class="frm__rg" id="frm-hbox"><span>📏 Alto de la foto en el celular <b id="frm-hv"></b></span><input type="range" id="frm-h" min="40" max="95" step="1"><small class="muted">Más alto = se ve más foto antes del título.</small></label>' : "") +
         '<label class="frm__rg"><span>↔ Mover a los lados</span><input type="range" id="frm-x" min="0" max="100" step="1"></label>' +
         '<label class="frm__rg"><span>↕ Mover arriba o abajo</span><input type="range" id="frm-y" min="0" max="100" step="1"></label>' +
         '<button type="button" class="frm__reset" data-fx="reset">⟲ Centrar de nuevo</button></div></div>' +
@@ -51,9 +52,11 @@
         $$(".frm__f", box).forEach(function (f) {
           var fid = f.getAttribute("data-f"), e = valFor(fid), img = $(".frm__img", f);
           img.style.backgroundImage = "url('" + o.url.replace(/'/g, "%27") + "')";
+          var bl = $(".frm__blur", f); if (bl) bl.style.backgroundImage = img.style.backgroundImage;
+          if (o.heightFor === fid && o.ratioFor) f.style.setProperty("--r", o.ratioFor(e.h));
           img.style.backgroundPosition = e.x + "% " + e.y + "%";
           img.style.backgroundSize = e.fit;
-          img.style.backgroundColor = o.fill || "#0A1A30";
+          img.style.backgroundColor = bl ? "transparent" : o.fill || "#0A1A30";
           img.style.transform = "scale(" + e.z + ")";
           img.style.transformOrigin = e.x + "% " + e.y + "%";
           var ov = $(".frm__ov", f); if (ov) ov.style.background = o.overlay;
@@ -62,6 +65,8 @@
         var e = v();
         $("#frm-z", box).value = e.z; $("#frm-x", box).value = e.x; $("#frm-y", box).value = e.y;
         $("#frm-zv", box).textContent = Math.round(e.z * 100) + "%";
+        var hb = $("#frm-hbox", box);
+        if (hb) { var he = valFor(o.heightFor); hb.hidden = sep && !same && st.cur !== o.heightFor; $("#frm-h", box).value = he.h; $("#frm-hv", box).textContent = he.h + "% de la pantalla"; }
         $$("[data-fit]", box).forEach(function (b) { b.classList.toggle("is-on", b.getAttribute("data-fit") === e.fit); });
         var tabs = $("#frm-tabs", box);
         if (tabs) { tabs.hidden = same; $$("[data-cur]", tabs).forEach(function (b) { b.classList.toggle("is-on", b.getAttribute("data-cur") === st.cur); }); }
@@ -69,6 +74,8 @@
       function set(k, val) { v()[k] = val; paint(); }
 
       $("#frm-z", box).oninput = function () { set("z", parseFloat(this.value)); };
+      $$("[data-zs]", box).forEach(function (b) { b.onclick = function () { set("z", clamp(Math.round((v().z + 0.05 * +b.getAttribute("data-zs")) * 100) / 100, o.blur ? 0.3 : 0.6, 3)); }; });
+      if ($("#frm-h", box)) $("#frm-h", box).oninput = function () { valFor(o.heightFor).h = parseFloat(this.value); paint(); };
       $("#frm-x", box).oninput = function () { set("x", parseFloat(this.value)); };
       $("#frm-y", box).oninput = function () { set("y", parseFloat(this.value)); };
       $$("[data-fit]", box).forEach(function (b) { b.onclick = function () { set("fit", b.getAttribute("data-fit")); }; });
