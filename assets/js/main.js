@@ -516,7 +516,7 @@
     if (c && Object.keys(c).length) applyContent(c);
     initAnalytics();
     if (editing) {
-      ["assets/js/ac-upload.js", "assets/js/editor.js"].reduce(function (p, src) {
+      ["assets/js/ac-upload.js?v=20261001b", "assets/js/editor.js?v=20261001b"].reduce(function (p, src) {
         return p.then(function () {
           return new Promise(function (res, rej) { var sc = document.createElement("script"); sc.src = src; sc.onload = res; sc.onerror = rej; document.body.appendChild(sc); });
         });
@@ -531,6 +531,23 @@
     loadContent: loadContent,
     sanitize: sanitize
   };
+
+  /* ---------- Banner de anuncios (rotativo) ---------- */
+  (function () {
+    var msgs = $$(".announce__msg");
+    if (msgs.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var i = 0;
+    setInterval(function () {
+      if (document.body.classList.contains("ac-editing")) return;
+      var cur = msgs[i];
+      var visible = msgs.filter(function (m) { return m.textContent.trim(); });
+      if (visible.length < 2) return;
+      do { i = (i + 1) % msgs.length; } while (!msgs[i].textContent.trim());
+      cur.classList.remove("is-on"); cur.classList.add("is-out");
+      msgs[i].classList.remove("is-out"); msgs[i].classList.add("is-on");
+      setTimeout(function () { cur.classList.remove("is-out"); }, 600);
+    }, 4200);
+  })();
 
   /* ---------- Año ---------- */
   $("#year").textContent = new Date().getFullYear();
