@@ -14,7 +14,7 @@
   var crm = { db: null, loading: null, mode: window.innerWidth < 860 ? "lista" : "tablero", filtro: "", etapa: "todas", abogadoF: "todos" };
 
   A.TITLES.clientes = "Clientes";
-  A.TITLES.documentos = "Documentos y cuentas";
+  A.TITLES.documentos = "Firmas, cuentas y plantillas";
 
   /* ==========================================================================
      Datos
@@ -33,6 +33,7 @@
     return c;
   }
   function plantillas() { return cfg().plantillas || DEF.plantillas; }
+  var saving = Promise.resolve();
   function me() { return (crm.db && crm.db.me) || { id: "owner", rol: "admin", nombre: "Administrador" }; }
   function isAdmin() { return me().rol === "admin"; }
   function users() { return ((crm.db && crm.db.config && crm.db.config.usuarios) || []); }
@@ -50,11 +51,11 @@
   function lawyerName(l) { var p = lawyerById(l.abogadoId); return p ? p.nombre : l.abogado || ""; }
   async function load(force) {
     if (crm.db && !force) return crm.db;
+    if (force) await saving; // no recargar mientras hay cambios guardándose
     if (crm.loading) return crm.loading;
     crm.loading = A.api("/api/crm").then(function (db) { crm.db = db; crm.loading = null; return db; }, function (e) { crm.loading = null; throw e; });
     return crm.loading;
   }
-  var saving = Promise.resolve();
   function save(msg) {
     saving = saving.then(async function () {
       try {
@@ -405,7 +406,13 @@
       Object.assign(d.data, { cliente: cli, servicio: src.servicio || l.servicio, alcance: (src.alcance || []).slice(), honorarios: src.honorarios || l.valor || 0, iva: !!src.iva, plan: JSON.parse(JSON.stringify(src.plan || planFrom("50 / 50"))), gastos: (src.gastos || DEF.gastos.slice(0, 4)).slice(), tiempo: src.tiempo || "", cuentas: src.cuentas || defaultAccounts(), clausulas: JSON.parse(JSON.stringify(cfg().clausulas || DEF.clausulas)), ciudadFirma: cfg().firma.ciudad || "Cúcuta", propuestaRef: prop ? prop.numero : "" });
       if (!d.data.alcance.length) { var tp = findTemplate(l.servicio); if (tp) d.data.alcance = tp.alcance.slice(); }
     }
-    if (tipo === "poder") Object.assign(d.data, { cliente: cli, destinatario: /venezuela/i.test(l.servicio || "") ? "Autoridad competente del Registro Civil (Venezuela)" : "Registraduría Nacional del Estado Civil", ciudadDest: "", referencia: "Poder especial — " + (l.servicio || ""), objeto: "adelante, tramite y lleve hasta su terminación el proceso o trámite de " + (l.servicio || "").toLowerCase() + ", ante la autoridad competente, incluidas todas las actuaciones necesarias para ello.", facultades: DEF.facultades.slice(0, 8) });
+    if (tipo === "poder") {
+      var tp0 = DEF.tiposPoder.find(function (t) { return /venezuela/i.test(l.servicio || "") ? t.id === "ven" : /suces/i.test(l.servicio || "") ? t.id === "suc-not" : t.id === "reg-admin"; }) || DEF.tiposPoder[0];
+      var ab0 = lawyerData(l.abogadoId), u0 = lawyerById(l.abogadoId) || {};
+      Object.assign(d.data, { poderdantes: [{ nombre: l.nombre, cedula: l.cedula, expedida: l.expedida, ciudad: l.ciudad, telefono: l.telefono, email: l.email, direccion: l.direccion, tipoDoc: "cédula de ciudadanía", calidad: /suces/i.test(l.servicio || "") ? "hijo(a) y heredero(a) del causante" : "en nombre propio" }], emailApoderado: u0.email || cfg().firma.email || "", direccionApoderado: cfg().firma.direccion || "", ciudadFirma: cfg().firma.ciudad || "Cúcuta", asunto: {}, tratamiento: "Señor(a)" });
+      applyPoderType(d.data, tp0);
+      d.data.abogado = ab0;
+    }
     if (tipo === "acta") Object.assign(d.data, { servicio: l.servicio, requisitos: JSON.parse(JSON.stringify((l.requisitos || []).length ? l.requisitos : [])) });
     if (tipo === "libre") Object.assign(d.data, { titulo: DEF.libres[0][0], cuerpo: fillLead(DEF.libres[0][1], l), firmaFirma: true });
     return d;
@@ -480,11 +487,13 @@
       if (!l.servicio) l.servicio = d.data.servicio;
       l.requisitos = (d.data.requisitos || []).map(function (r) { var ex = (l.requisitos || []).find(function (x) { return x.t === r.t; }); return { t: r.t, estado: ex && ex.estado !== "pendiente" ? ex.estado : r.estado }; });
     }
+    if (d.tipo === "poder" && d.data.poderdantes && d.data.poderdantes[0]) { var p0 = d.data.poderdantes[0]; ["nombre", "cedula", "expedida", "ciudad", "email"].forEach(function (k) { if (p0[k] && !l[k]) l[k] = p0[k]; }); }
     if (d.data.cliente) ["nombre", "cedula", "expedida", "direccion", "ciudad", "telefono", "email"].forEach(function (k) { if (d.data.cliente[k]) l[k] = d.data.cliente[k]; });
     if (d.tipo === "contrato") l.valor = D.totals(d.data).total;
     if (send) { markSent(l, d, "WhatsApp"); waOpen(l, sendText(l, d)); }
     save(send ? "Guardado y enviado" : "Borrador guardado");
     closeEditor();
+    if (E.from === "hub") { E.from = null; A.route(); return; }
     if (panel.open) { panel.tab = "docs"; renderPanel(); } else openPanel(l.id, "docs");
   }
 
@@ -597,6 +606,10 @@
     }
   }
 
+  function applyPoderType(data, t) {
+    Object.assign(data, { tipoPoder: t.id, forma: t.forma, destinatario: t.destinatario, ciudadDest: t.ciudadDest, referencia: t.referencia, objeto: t.objeto, facultades: t.facultades.slice(), nota: "" });
+  }
+
   /* ---------- Formularios por tipo ---------- */
   var FORMS = {};
   function mount(root, html, again) { root.innerHTML = html; if (!root._bound) { bindForm(root, again); root._bound = true; } }
@@ -663,17 +676,55 @@
 
   FORMS.poder = function (root) {
     var d = E.d.data;
-    var DEST = ["Registraduría Nacional del Estado Civil", "Juez de Familia (Reparto)", "Juez Civil Municipal (Reparto)", "Notaría", "Autoridad competente del Registro Civil (Venezuela)", "Tribunal competente (Venezuela)"];
+    if (!d.poderdantes) d.poderdantes = [Object.assign({ tipoDoc: "cédula de ciudadanía", calidad: "en nombre propio" }, d.cliente || {})];
+    d.asunto = d.asunto || {};
+    var DEST = ["Registraduría Nacional del Estado Civil", "Juez (Reparto)", "Juez de Familia (Reparto)", "Juez Civil Municipal (Reparto)", "Notario(a) del Círculo", "Autoridad competente del Registro Civil — República Bolivariana de Venezuela"];
+    var TIPOSDOC = ["cédula de ciudadanía", "cédula de extranjería", "pasaporte", "PPT", "cédula de identidad venezolana"];
+    function tokens() { var t = {}; String((d.objeto || "") + " " + (d.referencia || "") + " " + (d.notas || "")).replace(/\{([A-Z_]+)\}/g, function (m, k) { t[k] = 1; }); return Object.keys(t); }
     function draw() {
+      var tk = tokens();
       mount(root,
-        sec("1. Poderdante (cliente)", clientFields(d.cliente || {})) +
-        sec("2. Destinatario y referencia", '<div class="f"><label>Dirigido a</label>' + chips("destinatario", DEST, d.destinatario) + '<input type="text" data-k="destinatario" value="' + esc(d.destinatario) + '"></div>' +
-          text("ciudadDest", "Ciudad", d.ciudadDest, "Cúcuta") + text("referencia", "Referencia", d.referencia)) +
-        sec("3. Objeto del poder", area("objeto", "Para que en mi nombre y representación…", d.objeto, 4)) +
-        sec("4. Facultades", chips("facultades", DEF.facultades, d.facultades, true)) +
-        sec("5. Apoderado y notas", lawyerPick(d.abogado) + '<div class="f"><label>Fecha</label><input type="date" data-k="fecha" value="' + esc(d.fecha) + '"></div>' + area("notas", "Texto adicional (opcional)", d.notas, 2), false),
+        sec("1. ¿Para qué es el poder?", '<p class="muted">Elija un modelo: se llenan el destinatario, el objeto, las facultades y la forma de otorgamiento.</p>' +
+          '<div class="crm-ptypes">' + DEF.tiposPoder.map(function (t) { return '<button type="button" data-ptype="' + t.id + '" class="' + (d.tipoPoder === t.id ? "is-on" : "") + '">' + esc(t.nombre) + "</button>"; }).join("") + "</div>") +
+        (tk.length ? sec("2. Datos del asunto", '<p class="muted">Complete los datos que aparecen en el texto del poder.</p>' + tk.map(function (k) { return '<div class="f"><label>' + esc(DEF.camposPoder[k] || k) + '</label><input type="text" data-k="asunto.' + k + '" value="' + esc(d.asunto[k] || "") + '"></div>'; }).join("")) : "") +
+        sec((tk.length ? "3" : "2") + ". Poderdante(s)", d.poderdantes.map(function (p, i) {
+          return '<div class="crm-pd"><div class="crm-pd__h"><b>Poderdante ' + (i + 1) + "</b>" + (d.poderdantes.length > 1 ? '<button type="button" data-pdrm="' + i + '">Quitar</button>' : "") + "</div>" +
+            '<div class="grid2">' + text("poderdantes." + i + ".nombre", "Nombre completo", p.nombre) + '<div class="f"><label>Tipo de documento</label><select data-pdsel="' + i + '" data-field="tipoDoc">' + TIPOSDOC.map(function (x) { return "<option" + (x === p.tipoDoc ? " selected" : "") + ">" + x + "</option>"; }).join("") + "</select></div></div>" +
+            '<div class="grid2">' + text("poderdantes." + i + ".cedula", "Número de documento", p.cedula) + text("poderdantes." + i + ".expedida", "Expedido en", p.expedida) + "</div>" +
+            '<div class="grid2">' + text("poderdantes." + i + ".ciudad", "Domicilio (ciudad)", p.ciudad) + text("poderdantes." + i + ".email", "Correo para notificaciones", p.email) + "</div>" +
+            '<div class="f"><label>Actúa en calidad de</label>' + '<div class="crm-chipset" data-pdcal="' + i + '">' + DEF.calidades.map(function (c) { return '<button type="button" data-v="' + esc(c) + '" class="' + (p.calidad === c ? "is-on" : "") + '">' + esc(c) + "</button>"; }).join("") + '</div><input type="text" data-k="poderdantes.' + i + '.calidad" value="' + esc(p.calidad || "") + '"></div></div>';
+        }).join("") + '<button type="button" class="crm-add" data-pdadd>＋ Agregar otro poderdante (p. ej., otro heredero)</button>') +
+        sec((tk.length ? "4" : "3") + ". Destinatario y referencia", '<div class="f"><label>Dirigido a</label>' + chips("destinatario", DEST, d.destinatario) + '<input type="text" data-k="destinatario" value="' + esc(d.destinatario) + '"></div>' +
+          '<div class="grid2">' + text("ciudadDest", "Ciudad", d.ciudadDest) + text("radicado", "Radicado (si ya existe)", d.radicado) + "</div>" +
+          text("referencia", "Referencia", d.referencia) + text("contraparte", "Contraparte (si aplica)", d.contraparte), false) +
+        sec((tk.length ? "5" : "4") + ". Objeto del poder", area("objeto", "Para que en mi nombre y representación…", d.objeto, 6) + '<small class="muted">Los textos entre llaves, como {CAUSANTE}, se llenan con los datos del asunto.</small>', false) +
+        sec((tk.length ? "6" : "5") + ". Facultades", '<p class="muted">Arts. 74 y 77 del Código General del Proceso: las facultades de disposición (recibir, desistir, conciliar, transigir…) deben otorgarse de forma expresa.</p>' + chips("facultades", DEF.facultades, d.facultades, true)) +
+        sec((tk.length ? "7" : "6") + ". Apoderado y forma de otorgamiento", lawyerPick(d.abogado) +
+          '<div class="grid2">' + text("emailApoderado", "Correo del apoderado inscrito en el Registro Nacional de Abogados", d.emailApoderado) + text("direccionApoderado", "Dirección de notificaciones", d.direccionApoderado) + "</div>" +
+          '<div class="grid2">' + text("sustituto", "Apoderado sustituto (opcional)", d.sustituto) + text("sustitutoTp", "T.P. del sustituto", d.sustitutoTp) + "</div>" +
+          '<div class="f"><label>Forma de otorgamiento</label>' + chips("forma", Object.keys(DEF.formasPoder).map(function (k) { return [k, DEF.formasPoder[k][0]]; }), d.forma) + '<small class="muted">' + esc((DEF.formasPoder[d.forma] || DEF.formasPoder.datos)[1]) + "</small></div>" +
+          '<div class="grid2">' + text("ciudadFirma", "Ciudad de firma", d.ciudadFirma) + '<div class="f"><label>Fecha</label><input type="date" data-k="fecha" value="' + esc(d.fecha) + '"></div></div>' +
+          area("notas", "Texto adicional (opcional)", d.notas, 2)),
         draw);
     }
+    root.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-ptype]");
+      if (b) {
+        var t = DEF.tiposPoder.find(function (x) { return x.id === b.getAttribute("data-ptype"); });
+        applyPoderType(d, t); draw(); preview(); return;
+      }
+      var cal = e.target.closest("[data-pdcal] button");
+      if (cal) { var i = +cal.closest("[data-pdcal]").getAttribute("data-pdcal"); d.poderdantes[i].calidad = cal.getAttribute("data-v"); d.asunto.CALIDAD = d.asunto.CALIDAD || d.poderdantes[0].calidad; draw(); preview(); return; }
+      if (e.target.closest("[data-pdadd]")) { d.poderdantes.push({ tipoDoc: "cédula de ciudadanía", calidad: d.poderdantes[0].calidad || "" }); draw(); preview(); return; }
+      var rm = e.target.closest("[data-pdrm]");
+      if (rm) { d.poderdantes.splice(+rm.getAttribute("data-pdrm"), 1); draw(); preview(); return; }
+      var fm = e.target.closest('[data-chips="forma"] button');
+      if (fm) { setTimeout(function () { draw(); preview(); }, 0); }
+    }, true);
+    root.addEventListener("change", function (e) {
+      var sel = e.target.closest("[data-pdsel]");
+      if (sel) { d.poderdantes[+sel.getAttribute("data-pdsel")][sel.getAttribute("data-field")] = sel.value; preview(); }
+    });
     draw();
   };
 
@@ -1014,6 +1065,97 @@
           save("Plantilla guardada"); A.route();
         };
       }, "Guardar plantilla");
+  }
+
+  /* ==========================================================================
+     Vista: Documentos (crear, editar, descargar y enviar en un solo lugar)
+     ========================================================================== */
+  A.TITLES.docs = "Documentos";
+  var hub = { tipo: "todos", q: "" };
+  var NUEVOS = [
+    ["poder", "🖋", "Poder especial", "Registraduría, juez, notaría, sucesiones o Venezuela. Con todas las facultades legales."],
+    ["propuesta", "📄", "Propuesta de servicios", "Alcance, ley aplicable, requisitos, honorarios y plan de pagos."],
+    ["contrato", "📑", "Contrato de servicios", "Cláusulas completas, honorarios y firma electrónica."],
+    ["acta", "🗂", "Acta de recepción", "Constancia de los documentos que entrega el cliente."],
+    ["recibo", "💵", "Recibo de pago", "Registra el pago y genera el recibo con el valor en letras."],
+    ["libre", "📝", "Otro documento", "Autorización de datos, declaración, paz y salvo o texto libre."]
+  ];
+  A.VIEWS.docs = async function (v) {
+    v.innerHTML = '<div class="empty">Cargando documentos…</div>';
+    try { await load(true); } catch (e) { v.innerHTML = '<div class="empty">' + esc(e.message) + "</div>"; return; }
+    renderHub(v);
+  };
+  function renderHub(v) {
+    var rows = [];
+    crm.db.leads.forEach(function (l) { (l.docs || []).forEach(function (d) { rows.push({ l: l, d: d }); }); });
+    rows.sort(function (a, b) { return a.d.creado < b.d.creado ? 1 : -1; });
+    var q = hub.q.toLowerCase();
+    var list = rows.filter(function (r) {
+      return (hub.tipo === "todos" || r.d.tipo === hub.tipo) && (!q || [r.d.numero, r.l.nombre, r.l.cedula, r.d.data && (r.d.data.servicio || r.d.data.titulo || r.d.data.referencia)].join(" ").toLowerCase().indexOf(q) > -1);
+    });
+    var counts = {}; rows.forEach(function (r) { counts[r.d.tipo] = (counts[r.d.tipo] || 0) + 1; });
+    var pend = rows.filter(function (r) { return r.d.tipo !== "recibo" && r.d.estado !== "borrador" && !r.d.firma; }).length;
+    v.innerHTML =
+      '<div class="crm-newgrid">' + NUEVOS.map(function (n) { return '<button type="button" data-hnew="' + n[0] + '"><span>' + n[1] + "</span><b>" + n[2] + "</b><small>" + n[3] + "</small></button>"; }).join("") + "</div>" +
+      '<div class="crm-stats"><div><b>' + rows.length + '</b><span>Documentos</span></div><div><b>' + rows.filter(function (r) { return r.d.estado === "borrador"; }).length + '</b><span>Borradores</span></div><div><b>' + pend + '</b><span>Esperando firma</span></div><div><b>' + rows.filter(function (r) { return r.d.firma; }).length + "</b><span>Firmados</span></div></div>" +
+      '<div class="crm-bar"><input type="search" id="h-q" placeholder="🔎 Buscar por número, cliente o cédula…" value="' + esc(hub.q) + '"></div>' +
+      '<div class="crm-chips">' + [["todos", "Todos"]].concat(Object.keys(D.TIPOS).map(function (k) { return [k, D.TIPOS[k]]; })).map(function (c) {
+        return '<button type="button" data-ht="' + c[0] + '" class="' + (hub.tipo === c[0] ? "is-on" : "") + '">' + c[1] + " <b>" + (c[0] === "todos" ? rows.length : counts[c[0]] || 0) + "</b></button>";
+      }).join("") + "</div>" +
+      (list.length ? '<div class="crm-docs">' + list.map(function (r, i) {
+        var d = r.d, st = d.tipo === "recibo" ? ["Pagado", "ok"] : ESTADO[d.estado] || ["", ""];
+        return '<div class="crm-doc"><span class="crm-doc__ic">' + esc(D.PREFIJO[d.tipo]) + '</span><div class="crm-doc__m"><b>' + esc(d.tipo === "libre" ? d.data.titulo : D.TIPOS[d.tipo]) + " · " + esc(r.l.nombre || "Sin nombre") + "</b><small>" + esc(d.numero) + " · " + A.fmtDate(d.creado) + (d.tipo === "poder" && d.data.referencia ? " · " + esc(String(d.data.referencia).replace(/\{([A-Z_]+)\}/g, function (m, k) { return (d.data.asunto || {})[k] || "…"; }).slice(0, 70)) : d.data && d.data.servicio ? " · " + esc(d.data.servicio) : "") + "</small></div>" +
+          '<span class="tag ' + (st[1] ? "tag--" + st[1] : "") + '">' + st[0] + '</span><div class="crm-doc__a">' +
+          (!d.firma ? '<button type="button" class="icon" data-hd="edit" data-i="' + i + '" title="Editar">✏️</button>' : "") +
+          '<button type="button" class="btn btn--navy btn--sm" data-hd="pdf" data-i="' + i + '">⬇ PDF</button>' +
+          '<button type="button" class="btn btn--wa btn--sm" data-hd="send" data-i="' + i + '">Enviar</button>' +
+          '<button type="button" class="icon" data-hd="more" data-i="' + i + '" title="Más">⋯</button></div></div>';
+      }).join("") + "</div>" : '<div class="empty">' + (rows.length ? "No hay documentos con ese filtro." : "Aún no hay documentos. Cree el primero con los botones de arriba.") + "</div>");
+    $("#h-q", v).addEventListener("input", function (e) { hub.q = e.target.value; var pos = e.target.selectionStart; renderHub(v); var x = $("#h-q", v); x.focus(); x.setSelectionRange(pos, pos); });
+    $$("[data-ht]", v).forEach(function (b) { b.onclick = function () { hub.tipo = b.getAttribute("data-ht"); renderHub(v); }; });
+    $$("[data-hnew]", v).forEach(function (b) { b.onclick = function () { pickClient(b.getAttribute("data-hnew")); }; });
+    $$("[data-hd]", v).forEach(function (b) {
+      b.onclick = function () {
+        var r = list[+b.getAttribute("data-i")], a = b.getAttribute("data-hd");
+        if (a === "edit") { E.from = "hub"; editDoc(r.l, r.d); }
+        if (a === "pdf") downloadPdf(r.l, r.d);
+        if (a === "send") { sendDoc(r.l, r.d); renderHub(v); }
+        if (a === "more") docMenu(r.l, r.d);
+      };
+    });
+  }
+  function pickClient(tipo) {
+    var name = (NUEVOS.find(function (n) { return n[0] === tipo; }) || [])[2];
+    sheet(name + " · ¿Para qué cliente?",
+      '<div class="form"><input type="search" class="crm-pick-q" placeholder="🔎 Buscar cliente por nombre, cédula o teléfono…">' +
+      '<div class="crm-pick" id="pick-list"></div>' +
+      '<details class="crm-sec"><summary>＋ Cliente nuevo</summary><div class="crm-sec__b"><div class="grid2">' + fi("n_nombre", "Nombre completo", "") + fi("n_cedula", "Documento de identidad", "") + '</div><div class="grid2">' + fi("n_tel", "WhatsApp", "") + fi("n_ciudad", "Ciudad", "Cúcuta") + "</div>" +
+      '<button type="button" class="btn btn--gold btn--block" data-newcli>Crear cliente y continuar</button></div></details></div>',
+      function (box) {
+        function draw(q) {
+          q = (q || "").toLowerCase();
+          var ls = crm.db.leads.filter(function (l) { return !q || [l.nombre, l.cedula, l.telefono].join(" ").toLowerCase().indexOf(q) > -1; }).slice(0, 30);
+          $("#pick-list", box).innerHTML = ls.map(function (l) { return '<button type="button" data-pick="' + l.id + '"><b>' + esc(l.nombre || "(sin nombre)") + "</b><small>" + esc([l.cedula ? "C.C. " + l.cedula : "", l.servicio, etapaName(l.etapa)].filter(Boolean).join(" · ")) + "</small></button>"; }).join("") || '<p class="muted">No se encontraron clientes. Créelo abajo.</p>';
+        }
+        draw("");
+        $(".crm-pick-q", box).addEventListener("input", function (e) { draw(e.target.value); });
+        function go(l) {
+          closeSheet();
+          if (tipo === "recibo") { openPanel(l.id, "pagos"); setTimeout(function () { registerPayment(l); }, 50); return; }
+          E.from = "hub"; editDoc(l, newDoc(l, tipo));
+        }
+        box.addEventListener("click", function (e) {
+          var p = e.target.closest("[data-pick]"); if (p) go(lead(p.getAttribute("data-pick")));
+          if (e.target.closest("[data-newcli]")) {
+            var g = function (n) { return box.querySelector("[name=" + n + "]").value.trim(); };
+            if (!g("n_nombre")) { A.toast("Escriba el nombre del cliente", true); return; }
+            var l = { id: "L" + Date.now().toString(36) + rid(4), createdAt: now(), etapaDesde: now(), nombre: g("n_nombre"), cedula: g("n_cedula"), telefono: g("n_tel"), ciudad: g("n_ciudad"), email: "", servicio: "", etapa: "contactado", abogadoId: isAdmin() ? "" : me().id, abogado: isAdmin() ? "" : me().nombre, valor: 0, etiquetas: ["Documento"], actividad: [], notas: [], docs: [], pagos: [], requisitos: [], archivos: [] };
+            log(l, "creado", "Cliente creado desde Documentos.");
+            crm.db.leads.unshift(l); save();
+            go(l);
+          }
+        });
+      });
   }
 
   /* ---------- Asignación de casos ---------- */

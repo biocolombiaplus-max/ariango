@@ -71,7 +71,7 @@
     $("#side-user").innerHTML = "<span>" + (lawyer ? "Abogado" : "Administrador") + "</span><b>" + esc(state.user.nombre || "") + "</b>";
     if (lawyer) {
       state.saved = {}; resetDraft();
-      if (!location.hash || ["#clientes", "#perfil", "#inicio"].indexOf(location.hash) < 0) location.hash = "clientes";
+      if (!location.hash || ["#clientes", "#perfil", "#inicio", "#docs"].indexOf(location.hash) < 0) location.hash = "clientes";
       route();
       return;
     }
@@ -144,7 +144,7 @@
     if ($("#app").hidden) return;
     var v = (location.hash || "#inicio").slice(1);
     if (!TITLES[v]) v = "inicio";
-    if (state.user && state.user.rol !== "admin" && ["clientes", "perfil"].indexOf(v) < 0) v = "clientes";
+    if (state.user && state.user.rol !== "admin" && ["clientes", "perfil", "docs"].indexOf(v) < 0) v = "clientes";
     $("#view-title").textContent = TITLES[v];
     $$("[data-view]").forEach(function (a) { a.classList.toggle("is-active", a.getAttribute("data-view") === v); });
     var view = $("#view"); view.className = "view view--" + v; VIEWS[v](view);

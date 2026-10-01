@@ -278,24 +278,55 @@
   }
 
   /* ---------- Poder especial ---------- */
+  var FORMAS_PODER = {
+    datos: ["Mensaje de datos", "Poder conferido mediante mensaje de datos, conforme al artículo 5 de la Ley 2213 de 2022: se presume auténtico y no requiere presentación personal ni reconocimiento."],
+    notaria: ["Presentación personal en notaría", "Este poder requiere presentación personal o reconocimiento de firma del poderdante ante notario."],
+    consulado: ["Ante consulado", "Poder otorgado ante el Consulado de Colombia en el exterior."],
+    apostilla: ["Para uso en el exterior", "Para surtir efectos en el exterior, la firma del poderdante debe reconocerse ante notario y el documento debe apostillarse (Convención de La Haya de 1961)."]
+  };
+  var CAMPOS_PODER = { SERIAL: "Indicativo serial / NUIP del registro", CAUSANTE: "Nombre del causante (fallecido)", FECHA_FALLECIMIENTO: "Fecha de fallecimiento", ACTA: "Número del acta de nacimiento", LUGAR: "Registro Civil / municipio", ASUNTO: "Asunto o trámite", CALIDAD: "Calidad del poderdante (p. ej., hijo(a) y heredero(a))" };
+  function fillPoder(t, d) {
+    var v = d.asunto || {};
+    return String(t || "").replace(/\{([A-Z_]+)\}/g, function (m, k) { return v[k] ? v[k] : "__________"; });
+  }
   function poder(doc, ctx) {
-    var d = doc.data || {}, f = ctx.firma || {}, cli = d.cliente || {}, ab = d.abogado || {};
+    var d = doc.data || {}, f = ctx.firma || {}, ab = d.abogado || {};
+    var pds = (d.poderdantes && d.poderdantes.length ? d.poderdantes : [d.cliente || {}]).filter(function (p) { return p && (p.nombre || p.cedula); });
+    if (!pds.length) pds = [{}];
+    var plural = pds.length > 1;
     var apod = ab.nombre || f.representante || "Walter Enrique Arias Moreno";
+    var tp = ab.tarjeta || f.tarjeta, cc = ab.cedula || f.cedulaRep;
     var fac = (d.facultades || []).join(", ");
+    var forma = FORMAS_PODER[d.forma || "datos"] || FORMAS_PODER.datos;
+    function persona(p) {
+      return "<b>" + esc(p.nombre || "____________________") + "</b>, mayor de edad, identificado(a) con " + esc(p.tipoDoc || "cédula de ciudadanía") + " N.º <b>" + esc(p.cedula || "__________") + "</b>" +
+        (p.expedida ? " expedida en " + esc(p.expedida) : "") + (p.ciudad ? ", domiciliado(a) en " + esc(p.ciudad) : "") + (p.calidad ? ", actuando en calidad de " + esc(p.calidad) : "");
+    }
+    var who = plural ? "Los suscritos " + pds.map(persona).join("; ") + ", por medio del presente escrito <b>conferimos</b>" : persona(pds[0]) + ", por medio del presente escrito <b>confiero</b>";
+    var signer = doc.firma ? doc.firma : null;
     return '<article class="acd acd--contract">' + stamp(doc) +
       head(ctx, "Poder especial", doc.numero, '<span class="acd-date">' + fecha(d.fecha || doc.creado) + "</span>") +
-      '<p class="acd-to">Señores<br><b>' + esc(d.destinatario || "AUTORIDAD COMPETENTE") + "</b><br>" + esc(d.ciudadDest || "") + "</p>" +
-      '<p class="acd-ref"><b>Referencia:</b> ' + esc(d.referencia || "Otorgamiento de poder especial") + "</p>" +
-      '<p class="acd-intro"><b>' + esc(cli.nombre || "") + "</b>, mayor de edad, identificado(a) con documento N.º <b>" + esc(cli.cedula || "") + "</b>" + (cli.expedida ? " expedido en " + esc(cli.expedida) : "") +
-      ", domiciliado(a) en " + esc(cli.ciudad || "") + ", por medio del presente escrito confiero <b>poder especial, amplio y suficiente</b> al abogado <b>" + esc(apod) + "</b>" +
-      (ab.cedula || f.cedulaRep ? ", identificado con C.C. " + esc(ab.cedula || f.cedulaRep) : "") + (ab.tarjeta || f.tarjeta ? ", portador de la Tarjeta Profesional N.º " + esc(ab.tarjeta || f.tarjeta) + " del Consejo Superior de la Judicatura" : "") +
-      ", para que en mi nombre y representación " + para(d.objeto || "") + "</p>" +
-      '<p class="acd-intro">Mi apoderado queda facultado para ' + esc(fac || "realizar todas las actuaciones necesarias para el cumplimiento de este mandato") + ", y en general para todo lo que considere necesario en defensa de mis intereses, en los términos del artículo 77 del Código General del Proceso.</p>" +
-      (d.notas ? '<p class="acd-intro">' + para(d.notas) + "</p>" : "") +
-      '<p class="acd-intro">Atentamente,</p>' +
-      '<div class="acd-sigs acd-sigs--two">' + sigBlock(doc.firma ? doc.firma.nombre : cli.nombre || "PODERDANTE", "Poderdante", doc.firma ? "Doc. " + doc.firma.documento : cli.cedula ? "Doc. " + cli.cedula : "", clientSig(doc)) +
-      sigBlock(apod, "Acepto el poder", ab.tarjeta || f.tarjeta ? "T.P. " + (ab.tarjeta || f.tarjeta) : "", ab.firmaImg || firmImg(ctx)) + "</div>" +
-      '<p class="acd-small">' + esc(d.nota || "Poder conferido mediante mensaje de datos, conforme al artículo 5 de la Ley 2213 de 2022. Para trámites en el exterior puede requerir reconocimiento ante notario y apostilla.") + "</p>" +
+      '<p class="acd-to">' + esc(d.tratamiento || "Señor(a)") + "<br><b>" + esc(d.destinatario || "AUTORIDAD COMPETENTE") + "</b>" + (d.ciudadDest ? "<br>" + esc(d.ciudadDest) : "") + "<br>E. S. D.</p>" +
+      '<p class="acd-ref"><b>Referencia:</b> ' + esc(fillPoder(d.referencia, d) || "Otorgamiento de poder especial") +
+      (d.radicado ? "<br><b>Radicado:</b> " + esc(d.radicado) : "") + (d.contraparte ? "<br><b>Contraparte:</b> " + esc(d.contraparte) : "") + "</p>" +
+      '<p class="acd-intro">' + who + ' <b>poder especial, amplio y suficiente</b> al(la) abogado(a) <b>' + esc(apod) + "</b>" +
+      (cc ? ", identificado(a) con cédula de ciudadanía N.º " + esc(cc) : "") + (tp ? ", portador(a) de la Tarjeta Profesional N.º " + esc(tp) + " del Consejo Superior de la Judicatura" : "") +
+      (d.emailApoderado ? ", con correo electrónico <b>" + esc(d.emailApoderado) + "</b> inscrito en el Registro Nacional de Abogados" : "") +
+      (d.sustituto ? ", y como apoderado(a) sustituto(a) a <b>" + esc(d.sustituto) + "</b>" + (d.sustitutoTp ? ", T.P. N.º " + esc(d.sustitutoTp) : "") : "") +
+      ", para que en " + (plural ? "nuestro" : "mi") + " nombre y representación " + para(fillPoder(d.objeto, d)).replace(/\.\s*$/, "") + ".</p>" +
+      '<p class="acd-intro">' + (plural ? "Nuestro" : "Mi") + " apoderado(a) queda expresamente facultado(a) para " + esc(fac || "realizar todas las actuaciones necesarias para el cumplimiento de este mandato") +
+      ", y en general para todo lo que considere necesario en defensa de " + (plural ? "nuestros" : "mis") + " intereses, en los términos de los artículos 74 y 77 del Código General del Proceso. Este poder no podrá entenderse insuficiente para ningún acto que se relacione con el asunto encomendado.</p>" +
+      (d.notas ? '<p class="acd-intro">' + para(fillPoder(d.notas, d)) + "</p>" : "") +
+      '<p class="acd-intro">Sírvase reconocerle personería en los términos y para los fines del presente poder.</p>' +
+      '<div class="acd-notif"><b>Notificaciones</b><span>' + (plural ? "Poderdantes" : "Poderdante") + ": " + esc(pds.map(function (p) { return [p.email, p.telefono, p.direccion].filter(Boolean).join(" · "); }).filter(Boolean).join(" | ") || "__________") + "</span>" +
+      "<span>Apoderado(a): " + esc([d.emailApoderado, ab.telefono, d.direccionApoderado || f.direccion].filter(Boolean).join(" · ") || "__________") + "</span></div>" +
+      '<p class="acd-intro">' + esc(d.ciudadFirma || f.ciudad || "Cúcuta") + ", " + fecha(d.fecha || doc.creado) + ".</p>" +
+      '<div class="acd-sigs acd-sigs--two">' + pds.map(function (p, i) {
+        var signed = i === 0 && signer;
+        return sigBlock(signed ? signer.nombre : p.nombre || "PODERDANTE", "Poderdante", (signed ? "Doc. " + signer.documento : p.cedula ? "C.C. " + p.cedula : ""), signed ? clientSig(doc) : "");
+      }).join("") +
+      sigBlock(apod, "Acepto el poder · Apoderado(a)", tp ? "T.P. " + tp : "", ab.firmaImg || firmImg(ctx)) + "</div>" +
+      '<p class="acd-small"><b>' + esc(forma[0]) + ".</b> " + esc(d.nota || forma[1]) + "</p>" +
       certificate(doc) + foot(ctx) + "</article>";
   }
 
@@ -375,12 +406,23 @@
     return proposal(doc, ctx);
   }
 
-  DEFAULTS.facultades = ["recibir", "desistir", "sustituir", "reasumir", "renunciar", "conciliar", "transigir", "solicitar y aportar pruebas", "interponer recursos", "notificarse", "radicar y retirar documentos", "solicitar copias y certificados"];
   DEFAULTS.libres = [
     ["Autorización de tratamiento de datos personales", "Yo, {CLIENTE}, identificado(a) con documento N.º {CEDULA}, autorizo de manera previa, expresa e informada a Ariango Consultores para recolectar, almacenar, usar y tratar mis datos personales, incluidos los datos sensibles que sean necesarios, con la finalidad exclusiva de prestar los servicios jurídicos contratados, conforme a la Ley 1581 de 2012 y el Decreto 1377 de 2013.\n\nConozco mis derechos a conocer, actualizar, rectificar y suprimir mis datos y a revocar esta autorización, que puedo ejercer escribiendo al correo de la firma."],
     ["Declaración juramentada de hechos", "Yo, {CLIENTE}, identificado(a) con documento N.º {CEDULA}, declaro bajo la gravedad del juramento que:\n\n1. \n2. \n\nLo anterior para que obre como prueba dentro del trámite de {SERVICIO}."],
     ["Constancia de entrega de documentos al cliente", "Ariango Consultores hace entrega a {CLIENTE}, identificado(a) con documento N.º {CEDULA}, de los siguientes documentos relacionados con el trámite de {SERVICIO}:\n\n• \n• \n\nEl cliente declara recibirlos a satisfacción."],
     ["Paz y salvo", "Ariango Consultores certifica que {CLIENTE}, identificado(a) con documento N.º {CEDULA}, se encuentra a paz y salvo por concepto de honorarios del servicio de {SERVICIO}."]
+  ];
+  DEFAULTS.facultades = ["recibir", "desistir", "sustituir", "reasumir", "renunciar", "conciliar", "transigir", "allanarse", "solicitar y aportar pruebas", "interponer recursos", "notificarse", "radicar y retirar documentos", "solicitar copias y certificados", "presentar derechos de petición", "suscribir escrituras públicas", "recibir títulos y dineros"];
+  DEFAULTS.formasPoder = FORMAS_PODER;
+  DEFAULTS.camposPoder = CAMPOS_PODER;
+  DEFAULTS.calidades = ["en nombre propio", "padre/madre en representación de mi hijo(a) menor de edad", "hijo(a) y heredero(a) del causante", "cónyuge sobreviviente", "compañero(a) permanente sobreviviente", "heredero(a) del causante", "representante legal"];
+  DEFAULTS.tiposPoder = [
+    { id: "reg-admin", nombre: "Nulidad de registro civil · Registraduría", forma: "datos", destinatario: "Registraduría Nacional del Estado Civil", ciudadDest: "Cúcuta", referencia: "Solicitud de anulación / cancelación de registro civil de nacimiento", objeto: "solicite ante la Registraduría Nacional del Estado Civil la anulación o cancelación del registro civil de nacimiento con indicativo serial / NUIP {SERIAL}, por contener información que no corresponde a la realidad, conforme al Decreto Ley 1260 de 1970, y adelante todas las actuaciones administrativas necesarias hasta su culminación, incluida la inscripción de un nuevo registro con los datos reales cuando proceda", facultades: ["recibir", "desistir", "sustituir", "reasumir", "renunciar", "solicitar y aportar pruebas", "interponer recursos", "notificarse", "radicar y retirar documentos", "solicitar copias y certificados", "presentar derechos de petición"] },
+    { id: "reg-jud", nombre: "Proceso judicial sobre registro civil", forma: "datos", destinatario: "Juez (Reparto)", ciudadDest: "Cúcuta", referencia: "Proceso de jurisdicción voluntaria — nulidad / corrección de registro civil de nacimiento", objeto: "inicie y lleve hasta su terminación proceso de jurisdicción voluntaria tendiente a obtener la nulidad o corrección del registro civil de nacimiento con indicativo serial / NUIP {SERIAL}, conforme al Decreto Ley 1260 de 1970 y al Código General del Proceso, y realice todas las actuaciones procesales necesarias", facultades: ["recibir", "desistir", "sustituir", "reasumir", "renunciar", "solicitar y aportar pruebas", "interponer recursos", "notificarse", "radicar y retirar documentos", "solicitar copias y certificados"] },
+    { id: "suc-not", nombre: "Sucesión en notaría", forma: "notaria", destinatario: "Notario(a) del Círculo", ciudadDest: "Cúcuta", referencia: "Liquidación notarial de la herencia de {CAUSANTE}", objeto: "en calidad de {CALIDAD} del(la) causante {CAUSANTE}, fallecido(a) el {FECHA_FALLECIMIENTO}, adelante ante notaría el trámite de liquidación de su herencia y, si fuere el caso, de la sociedad conyugal o patrimonial, conforme al Decreto 902 de 1988 y sus modificaciones, incluida la presentación de la solicitud, los inventarios y avalúos, el trabajo de partición y adjudicación, la atención de requerimientos de la DIAN y la firma de la escritura pública correspondiente", facultades: ["recibir", "sustituir", "reasumir", "renunciar", "conciliar", "transigir", "notificarse", "radicar y retirar documentos", "solicitar copias y certificados", "suscribir escrituras públicas", "recibir títulos y dineros"] },
+    { id: "suc-jud", nombre: "Sucesión ante juez", forma: "datos", destinatario: "Juez (Reparto)", ciudadDest: "Cúcuta", referencia: "Proceso de sucesión de {CAUSANTE}", objeto: "en calidad de {CALIDAD} del(la) causante {CAUSANTE}, fallecido(a) el {FECHA_FALLECIMIENTO}, inicie y lleve hasta su terminación el proceso de sucesión, conforme a los artículos 487 y siguientes del Código General del Proceso, incluidos inventarios y avalúos, partición y adjudicación, y el registro de la sentencia", facultades: ["recibir", "desistir", "sustituir", "reasumir", "renunciar", "conciliar", "transigir", "solicitar y aportar pruebas", "interponer recursos", "notificarse", "radicar y retirar documentos", "solicitar copias y certificados", "recibir títulos y dineros"] },
+    { id: "ven", nombre: "Trámite en Venezuela (Registro Civil)", forma: "apostilla", destinatario: "Autoridad competente del Registro Civil — República Bolivariana de Venezuela", ciudadDest: "", referencia: "Nulidad / rectificación del acta de nacimiento N.º {ACTA}", objeto: "solicite y tramite la nulidad o rectificación del acta de nacimiento N.º {ACTA} inserta en el Registro Civil de {LUGAR}, Venezuela, y realice todas las gestiones necesarias ante el Registro Civil, el SAIME, los tribunales y demás autoridades venezolanas", facultades: ["recibir", "desistir", "sustituir", "reasumir", "renunciar", "solicitar y aportar pruebas", "interponer recursos", "notificarse", "radicar y retirar documentos", "solicitar copias y certificados"] },
+    { id: "admin", nombre: "Trámites administrativos y derechos de petición", forma: "datos", destinatario: "Entidades públicas y privadas", ciudadDest: "", referencia: "Poder especial para trámites administrativos", objeto: "presente solicitudes y derechos de petición, solicite y retire copias, certificados y documentos, y adelante los trámites administrativos relacionados con {ASUNTO}", facultades: ["recibir", "sustituir", "reasumir", "renunciar", "notificarse", "radicar y retirar documentos", "solicitar copias y certificados", "presentar derechos de petición", "interponer recursos"] }
   ];
   window.ACDocs = { render: render, pdf: pdf, ETAPAS: ETAPAS, TIPOS: TIPOS, PREFIJO: PREFIJO, money: money, letras: letras, fecha: fecha, totals: totals, planRows: planRows, DEFAULTS: DEFAULTS, esc: esc };
 })();

@@ -153,3 +153,5 @@
   html, body { background: #fff !important; }
   .acd { box-shadow: none !important; margin: 0 !important; }
 }
+.acd-notif { display: grid; gap: 2pt; margin: 10pt 0; padding: 8pt 11pt; border-radius: 8pt; background: #F7F8FA; font-size: 8.5pt; color: var(--body); }
+.acd-notif b { color: var(--n8); font-size: 8pt; letter-spacing: .1em; text-transform: uppercase; }

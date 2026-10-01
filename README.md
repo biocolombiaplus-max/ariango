@@ -89,6 +89,16 @@ Abra `https://ariangoconsultores.com/admin` (también aparece como **“Acceso�
 - **Documentos y cuentas:** datos de la firma, firma de cada abogado, cuentas bancarias y plantillas de servicio (precio, plan de pagos, alcance, requisitos).
 - Los datos de los clientes y sus archivos se guardan **cifrados** (AES-256-GCM).
 
+## Documentos (Panel → 📄 Documentos)
+
+- Todos los documentos del bufete en un solo lugar: buscar, filtrar por tipo, **editar, descargar en PDF y enviar por WhatsApp**.
+- **Crear en dos pasos:** elija el tipo (poder, propuesta, contrato, acta, recibo u otro) y el cliente; o cree un cliente nuevo ahí mismo.
+- **Poder especial** con modelos listos: nulidad de registro civil ante la Registraduría, proceso judicial de registro civil, sucesión en notaría, sucesión ante juez, trámite en Venezuela y trámites administrativos. Incluye:
+  - varios poderdantes (por ejemplo, todos los herederos), cada uno con documento y calidad;
+  - datos del asunto que se detectan solos (causante, fecha de fallecimiento, serial del registro, acta);
+  - facultades expresas (arts. 74 y 77 del CGP), correo del apoderado inscrito en el Registro Nacional de Abogados y apoderado sustituto;
+  - forma de otorgamiento: mensaje de datos (Ley 2213 de 2022, art. 5), presentación personal en notaría, consulado o apostilla para el exterior.
+
 ## Abogados y accesos
 
 - **Panel → ⚖️ Abogados y accesos** (solo administrador): cree una cuenta por abogado con nombre, correo, contraseña inicial, cédula, tarjeta profesional y WhatsApp. El panel le arma el mensaje con los datos de acceso para enviárselo.
