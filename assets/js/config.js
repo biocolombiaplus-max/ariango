@@ -1,24 +1,24 @@
 /* ==========================================================================
-   CONFIGURACIÓN DEL SITIO — Ariango Consultores
-   Edite solo este archivo para cambiar datos de contacto e integraciones.
+   CONFIGURACIÓN BASE — Ariango Consultores
+   Estos valores se pueden cambiar sin tocar código desde el panel
+   administrativo (/admin → Ajustes). Lo que se guarde allí tiene prioridad.
    ========================================================================== */
 window.ARIANGO_CONFIG = {
-  // WhatsApp en formato internacional, sin "+" ni espacios (57 = Colombia)
-  whatsapp: "573156002993",
+  whatsapp: "573156002993",            // formato internacional, sin "+"
   whatsappVisible: "+57 315 600 2993",
+  phone: "+573156002993",              // para el botón "Llamar"
   email: "gerencia@ariangoconsultores.com",
+  address: "Cúcuta, Norte de Santander",
+  hours: "Presencial con cita previa y virtual",
+  mapQuery: "",                        // dirección exacta para el mapa (vacío = Cúcuta)
+  waIntro: "Hola, Ariango Consultores 👋",
 
-  // 1) Base de datos de clientes potenciales en Google Sheets.
-  //    Pegue aquí la URL de la "Aplicación web" de Google Apps Script
-  //    (vea google-apps-script/Code.gs y el README). Si se deja vacío, se omite.
+  // Base de datos en Google Sheets (URL /exec de Apps Script). Vacío = desactivado.
   googleSheetsEndpoint: "",
-
-  // 2) Notificación por correo de cada solicitud vía FormSubmit (gratis).
-  //    La primera solicitud enviará un correo de activación a la dirección
-  //    indicada; hay que confirmarlo una sola vez. Poner false para desactivar.
+  // Aviso por correo con FormSubmit (requiere activar una vez desde el correo).
   formSubmitEnabled: true,
 
-  // 3) Analítica opcional (dejar vacío si no se usa)
+  // Analítica opcional
   ga4Id: "",        // ej. "G-XXXXXXXXXX"
   metaPixelId: ""   // ej. "123456789012345"
 };
