@@ -47,7 +47,7 @@
     var nowTxt = data.etapa === "finalizado" ? "¡Caso finalizado!" : "Paso " + (nowIdx + 1) + " de 7 · <b>" + STEPS[nowIdx][1] + "</b>";
     var pend = data.docs.filter(needsSign);
     var reqPend = data.requisitos.filter(function (r) { return r.estado !== "recibido" && r.estado !== "na" && r.estado !== "revision"; });
-    var wa = String(data.whatsapp || data.abogadoTel || "").replace(/\D/g, "");
+    var wa = String(data.abogadoTel || data.whatsapp || "").replace(/\D/g, "");
     var waLink = wa ? "https://wa.me/" + wa + "?text=" + encodeURIComponent("Hola, soy " + data.cliente.nombre + ". Le escribo desde mi portal de cliente sobre mi caso de " + (data.servicio || "") + ".") : "";
     var tasks = pend.map(function (d) {
       return '<button type="button" class="p-task" data-doc="' + d.id + '"><span class="p-task__ic">✍️</span><span><b>Firmar ' + esc(D.TIPOS[d.tipo] || "documento").toLowerCase() + "</b><small>" + esc(d.numero) + " · toma menos de 1 minuto</small></span><span class=\"p-task__go\">→</span></button>";

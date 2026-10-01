@@ -51,22 +51,30 @@ function cookieFlags() {
   return "; Path=/; HttpOnly; SameSite=Strict" + (process.env.VERCEL ? "; Secure" : "");
 }
 
-export function isAuthed(req) {
-  if (!process.env.ADMIN_PASSWORD) return false;
+/** Devuelve la sesión ({ uid, rol, nombre, v }) o null. */
+export function getSession(req) {
+  if (!process.env.ADMIN_PASSWORD) return null;
   const token = getCookie(req, COOKIE);
-  if (!token) return false;
+  if (!token) return null;
   const [data, sig] = token.split(".");
-  if (!data || !sig) return false;
+  if (!data || !sig) return null;
   const a = Buffer.from(sig), b = Buffer.from(hmac(data));
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
   try {
-    const payload = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
-    return typeof payload.exp === "number" && payload.exp > Date.now();
-  } catch { return false; }
+    const p = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
+    if (typeof p.exp !== "number" || p.exp < Date.now()) return null;
+    return { uid: p.uid || "owner", rol: p.rol || "admin", nombre: p.nombre || "Administrador", v: p.v || 0 };
+  } catch { return null; }
 }
 
-export function startSession(res) {
-  const data = Buffer.from(JSON.stringify({ exp: Date.now() + MAX_AGE * 1000 })).toString("base64url");
+/** true solo para administradores (contenido del sitio, historial, imágenes). */
+export function isAuthed(req) {
+  const s = getSession(req);
+  return !!s && s.rol === "admin";
+}
+
+export function startSession(res, payload) {
+  const data = Buffer.from(JSON.stringify(Object.assign({ uid: "owner", rol: "admin", nombre: "Administrador" }, payload || {}, { exp: Date.now() + MAX_AGE * 1000 }))).toString("base64url");
   res.setHeader("Set-Cookie", `${COOKIE}=${data}.${hmac(data)}; Max-Age=${MAX_AGE}${cookieFlags()}`);
 }
 
@@ -81,14 +89,35 @@ export function passwordMatches(input) {
   return expected.length > 0 && crypto.timingSafeEqual(a, b);
 }
 
-/** Exige sesión; en escrituras exige además la cabecera propia del panel (protección CSRF). */
-export function requireAdmin(req, res) {
-  if (!isAuthed(req)) { send(res, 401, { error: "Sesión expirada. Inicie sesión de nuevo." }); return false; }
-  if (req.method !== "GET" && req.headers["x-ac-admin"] !== "1") {
-    send(res, 403, { error: "Solicitud no permitida." });
-    return false;
-  }
+/* Contraseñas de los abogados: scrypt con sal aleatoria. */
+export function hashPassword(pw) {
+  const salt = crypto.randomBytes(16).toString("base64url");
+  return { salt, hash: crypto.scryptSync(String(pw), salt, 32).toString("base64url") };
+}
+export function verifyPassword(pw, salt, hash) {
+  if (!salt || !hash) return false;
+  const a = crypto.scryptSync(String(pw || ""), salt, 32), b = Buffer.from(hash, "base64url");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function csrfOk(req, res) {
+  if (req.method !== "GET" && req.headers["x-ac-admin"] !== "1") { send(res, 403, { error: "Solicitud no permitida." }); return false; }
   return true;
+}
+
+/** Exige sesión de administrador; en escrituras exige además la cabecera propia del panel (protección CSRF). */
+export function requireAdmin(req, res) {
+  const s = getSession(req);
+  if (!s) { send(res, 401, { error: "Sesión expirada. Inicie sesión de nuevo." }); return false; }
+  if (s.rol !== "admin") { send(res, 403, { error: "Solo el administrador puede hacer esto." }); return false; }
+  return csrfOk(req, res) ? s : false;
+}
+
+/** Exige cualquier sesión (administrador o abogado). Devuelve la sesión. */
+export function requireUser(req, res) {
+  const s = getSession(req);
+  if (!s) { send(res, 401, { error: "Sesión expirada. Inicie sesión de nuevo." }); return false; }
+  return csrfOk(req, res) ? s : false;
 }
 
 /* ---------- Almacenamiento ----------

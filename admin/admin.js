@@ -63,6 +63,18 @@
   }
   async function showApp() {
     $("#login").hidden = true; $("#app").hidden = false;
+    var who = await fetch("/api/session", { credentials: "same-origin", cache: "no-store" }).then(function (r) { return r.json(); }).catch(function () { return {}; });
+    state.user = who.user || { rol: "admin", nombre: "Administrador" };
+    state.session.storage = who.storage || state.session.storage;
+    var lawyer = state.user.rol !== "admin";
+    document.body.classList.toggle("is-lawyer", lawyer);
+    $("#side-user").innerHTML = "<span>" + (lawyer ? "Abogado" : "Administrador") + "</span><b>" + esc(state.user.nombre || "") + "</b>";
+    if (lawyer) {
+      state.saved = {}; resetDraft();
+      if (!location.hash || ["#clientes", "#perfil", "#inicio"].indexOf(location.hash) < 0) location.hash = "clientes";
+      route();
+      return;
+    }
     var c = await fetch("/api/content?fresh=1&t=" + Date.now(), { credentials: "same-origin", cache: "no-store" }).then(function (r) { return r.json(); }).catch(function () { return {}; });
     state.saved = c || {};
     resetDraft();
@@ -81,9 +93,10 @@
     var msg = $(".login__msg"), btn = $("button[type=submit]", this);
     msg.textContent = ""; btn.disabled = true; btn.textContent = "Verificando…";
     try {
-      await api("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: $("#password").value }) });
+      await api("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: $("#email").value, password: $("#password").value }) });
       state.session.authed = true;
       $("#password").value = "";
+      state.user = null;
       showApp();
     } catch (err) { msg.textContent = err.message; }
     btn.disabled = false; btn.textContent = "Ingresar";
@@ -131,6 +144,7 @@
     if ($("#app").hidden) return;
     var v = (location.hash || "#inicio").slice(1);
     if (!TITLES[v]) v = "inicio";
+    if (state.user && state.user.rol !== "admin" && ["clientes", "perfil"].indexOf(v) < 0) v = "clientes";
     $("#view-title").textContent = TITLES[v];
     $$("[data-view]").forEach(function (a) { a.classList.toggle("is-active", a.getAttribute("data-view") === v); });
     var view = $("#view"); view.className = "view view--" + v; VIEWS[v](view);
@@ -494,7 +508,7 @@
   /* ---------- Arranque ---------- */
   fetch("/api/session", { credentials: "same-origin", cache: "no-store" })
     .then(function (r) { return r.json(); })
-    .then(function (s) { state.session = s; if (s.authed) showApp(); else showLogin(); })
+    .then(function (s) { state.session = s; if (s.user) showApp(); else showLogin(); })
     .catch(function () {
       state.session = { configured: false };
       showLogin();

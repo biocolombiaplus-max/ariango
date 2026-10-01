@@ -24,10 +24,10 @@ function publicView(db, lead) {
   const pagado = (lead.pagos || []).reduce((s, p) => s + (Number(p.valor) || 0), 0);
   const ids = new Set(docs.flatMap((d) => (d.data && d.data.cuentas) || []));
   const cuentas = (cfg.cuentas || []).filter((c) => !ids.size || ids.has(c.id));
-  const abogado = (cfg.abogados || []).find((a) => a.nombre === lead.abogado) || null;
+  const abogado = (cfg.usuarios || []).find((a) => a.id === lead.abogadoId) || null;
   return {
     cliente: { nombre: lead.nombre, telefono: lead.telefono, email: lead.email, ciudad: lead.ciudad, cedula: lead.cedula, direccion: lead.direccion },
-    servicio: lead.servicio, etapa: lead.etapa, abogado: lead.abogado || "", abogadoTel: abogado ? abogado.telefono : "",
+    servicio: lead.servicio, etapa: lead.etapa, abogado: (abogado && abogado.nombre) || lead.abogado || "", abogadoTel: abogado ? String(abogado.telefono || "").replace(/\D/g, "") : "",
     docs, requisitos: lead.requisitos || [],
     archivos: (lead.archivos || []).filter((f) => f.visibleCliente !== false).map(({ path, ...f }) => f),
     pagos: { total: lead.valor || 0, pagado },

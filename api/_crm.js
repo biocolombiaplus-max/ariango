@@ -81,6 +81,7 @@ export function mergeInbox(db, inbox) {
     if (!d) continue;
     if (d.kind === "lead") {
       if (db.leads.some((l) => l.id === d.lead.id)) continue;
+      autoAssign(db, d.lead);
       db.leads.unshift(d.lead);
       changed = true;
       continue;
@@ -116,4 +117,55 @@ export function mergeInbox(db, inbox) {
   }
   if (changed) db.leads.forEach((l) => { if (l.actividad) l.actividad.sort((a, b) => (a.t < b.t ? 1 : -1)); });
   return changed;
+}
+
+/* ---------- Usuarios (abogados) ---------- */
+export function usuarios(db) { db.config = db.config || {}; return (db.config.usuarios = db.config.usuarios || []); }
+export function publicUser(u) { if (!u) return null; const { salt, hash, ...rest } = u; return rest; }
+
+/** Valida que la sesión siga vigente (usuario activo y contraseña sin cambios). */
+export function sessionUser(db, s) {
+  if (!s) return null;
+  if (s.uid === "owner") return { id: "owner", rol: "admin", nombre: "Administrador principal" };
+  const u = usuarios(db).find((x) => x.id === s.uid);
+  if (!u || u.activo === false || (u.v || 0) !== (s.v || 0)) return null;
+  return u;
+}
+
+/** Lo que cada usuario puede ver del CRM. */
+export function viewFor(db, user) {
+  const config = Object.assign({}, db.config || {}, { usuarios: usuarios(db).map(publicUser) });
+  if (user.rol === "admin") return Object.assign({}, db, { config });
+  return Object.assign({}, db, { leads: db.leads.filter((l) => l.abogadoId === user.id), config });
+}
+
+/** Aplica los cambios de un abogado solo sobre sus propios casos. */
+export function mergeFromLawyer(current, submitted, user) {
+  const mine = new Map(submitted.leads.map((l) => [l.id, l]));
+  const out = [];
+  for (const l of current.leads) {
+    if (l.abogadoId !== user.id) { out.push(l); continue; }
+    if (mine.has(l.id)) { out.push(Object.assign({}, mine.get(l.id), { abogadoId: user.id, abogado: user.nombre })); mine.delete(l.id); }
+    // si no viene, el abogado lo eliminó
+  }
+  for (const l of mine.values()) {
+    if (current.leads.some((x) => x.id === l.id)) continue; // caso de otro abogado: no se toca
+    out.unshift(Object.assign({}, l, { abogadoId: user.id, abogado: user.nombre }));
+  }
+  current.leads = out;
+  current.seq = current.seq || {};
+  for (const [k, v] of Object.entries(submitted.seq || {})) current.seq[k] = Math.max(current.seq[k] || 0, Number(v) || 0);
+  return current;
+}
+
+/** Asignación automática por turnos de las solicitudes web. */
+export function autoAssign(db, lead) {
+  const cfg = db.config || {};
+  if (cfg.asignacion !== "rotacion" || lead.abogadoId) return;
+  const pool = usuarios(db).filter((u) => u.activo !== false && u.recibeCasos !== false && u.rol === "abogado");
+  if (!pool.length) return;
+  cfg.rotIdx = ((cfg.rotIdx || 0) + 1) % pool.length;
+  const u = pool[cfg.rotIdx];
+  lead.abogadoId = u.id; lead.abogado = u.nombre;
+  log(lead, "asignacion", "Asignado automáticamente a " + u.nombre + ".");
 }

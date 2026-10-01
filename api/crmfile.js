@@ -2,19 +2,24 @@
    GET  /api/crmfile?lead=<id>&file=<id>          → ver/descargar
    POST /api/crmfile?lead=<id>&name=<archivo>     → subir soporte de la firma (cuerpo = archivo)
    Devuelve los metadatos; el panel los agrega al expediente y guarda el CRM. */
-import { send, readBody, requireAdmin, storePut, fetchStoredBuffer, encryptBuffer, decryptBuffer, randomId } from "./_lib.js";
-import { loadDb } from "./_crm.js";
+import { send, readBody, requireUser, storePut, fetchStoredBuffer, encryptBuffer, decryptBuffer, randomId } from "./_lib.js";
+import { loadDb, sessionUser } from "./_crm.js";
 
 const TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf", "image/heic"];
 
 export default async function handler(req, res) {
-  if (!requireAdmin(req, res)) return;
+  const s = requireUser(req, res);
+  if (!s) return;
   const url = new URL(req.url, "http://x");
   const leadId = String(url.searchParams.get("lead") || "").replace(/[^\w-]/g, "");
   try {
+    const db = await loadDb();
+    const user = sessionUser(db, s);
+    if (!user) return send(res, 401, { error: "Ingrese de nuevo." });
+    const own = db.leads.find((l) => l.id === leadId);
+    if (user.rol !== "admin" && own && own.abogadoId !== user.id) return send(res, 403, { error: "Este caso está asignado a otro abogado." });
     if (req.method === "GET") {
-      const db = await loadDb();
-      const lead = db.leads.find((l) => l.id === leadId);
+      const lead = own;
       const f = lead && (lead.archivos || []).find((x) => x.id === url.searchParams.get("file"));
       if (!f) return send(res, 404, { error: "Archivo no encontrado (si acaba de llegar, recargue el CRM)." });
       const buf = decryptBuffer(await fetchStoredBuffer(f.path));

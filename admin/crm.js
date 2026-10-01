@@ -11,7 +11,7 @@
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var esc = A.esc, money = D.money, DEF = D.DEFAULTS;
   var ETAPAS = D.ETAPAS, ORDER = ETAPAS.map(function (e) { return e[0]; });
-  var crm = { db: null, loading: null, mode: window.innerWidth < 860 ? "lista" : "tablero", filtro: "", etapa: "todas" };
+  var crm = { db: null, loading: null, mode: window.innerWidth < 860 ? "lista" : "tablero", filtro: "", etapa: "todas", abogadoF: "todos" };
 
   A.TITLES.clientes = "Clientes";
   A.TITLES.documentos = "Documentos y cuentas";
@@ -33,14 +33,21 @@
     return c;
   }
   function plantillas() { return cfg().plantillas || DEF.plantillas; }
+  function me() { return (crm.db && crm.db.me) || { id: "owner", rol: "admin", nombre: "Administrador" }; }
+  function isAdmin() { return me().rol === "admin"; }
+  function users() { return ((crm.db && crm.db.config && crm.db.config.usuarios) || []); }
   function lawyers() {
-    var t = (A.team() || []).filter(function (p) { return p.visible !== false; });
-    return t.length ? t : [{ nombre: "Dr. Walter Enrique Arias Moreno", cargo: "Asesor jurídico principal", tarjeta: "" }];
+    var u = users().filter(function (x) { return x.activo !== false; });
+    if (u.length) return u;
+    var t = (A.team() || []).filter(function (p) { return p.visible !== false; })[0];
+    return [{ id: "owner", nombre: (cfg().firma.representante ? "Dr. " + cfg().firma.representante : (t && t.nombre) || "Dr. Walter Enrique Arias Moreno"), cargo: (t && t.cargo) || "Asesor jurídico principal", tarjeta: cfg().firma.tarjeta || "" }];
   }
-  function lawyerData(nombre) {
-    var p = lawyers().find(function (x) { return x.nombre === nombre; }) || lawyers()[0];
-    return { nombre: p.nombre, cargo: p.cargo || "Abogado", tarjeta: p.tarjeta || "", firmaImg: cfg().firmas[p.nombre] || "" };
+  function lawyerById(id) { return users().find(function (x) { return x.id === id; }) || lawyers().find(function (x) { return x.id === id; }); }
+  function lawyerData(id) {
+    var p = lawyerById(id) || lawyers()[0];
+    return { id: p.id, nombre: p.nombre, cargo: p.cargo || "Abogado", tarjeta: p.tarjeta || "", cedula: p.cedula || "", telefono: p.telefono || "", firmaImg: p.firmaImg || cfg().firmas[p.nombre] || "" };
   }
+  function lawyerName(l) { var p = lawyerById(l.abogadoId); return p ? p.nombre : l.abogado || ""; }
   async function load(force) {
     if (crm.db && !force) return crm.db;
     if (crm.loading) return crm.loading;
@@ -120,7 +127,9 @@
   function renderClientes(v) {
     var leads = crm.db.leads.filter(function (l) {
       var f = crm.filtro.toLowerCase();
-      return !f || [l.nombre, l.telefono, l.email, l.servicio, l.ciudad, l.cedula].join(" ").toLowerCase().indexOf(f) > -1;
+      var okText = !f || [l.nombre, l.telefono, l.email, l.servicio, l.ciudad, l.cedula].join(" ").toLowerCase().indexOf(f) > -1;
+      var okLaw = crm.abogadoF === "todos" || (crm.abogadoF === "sin" ? !l.abogadoId : l.abogadoId === crm.abogadoF);
+      return okText && okLaw;
     });
     var mes = new Date().toISOString().slice(0, 7);
     var stats = {
@@ -133,10 +142,12 @@
       '<div class="crm-stats"><div><b>' + stats.nuevos + "</b><span>Nuevos por contactar</span></div><div><b>" + stats.propuesta + "</b><span>En propuesta</span></div>" +
       "<div><b>" + money(stats.cobrado) + "</b><span>Cobrado este mes</span></div><div><b>" + money(stats.porCobrar) + "</b><span>Por cobrar</span></div></div>" +
       '<div class="crm-bar"><input type="search" id="crm-q" placeholder="🔎 Buscar por nombre, teléfono, cédula…" value="' + esc(crm.filtro) + '">' +
+      (isAdmin() ? '<select id="crm-law" class="crm-lawsel"><option value="todos">Todos los abogados</option><option value="sin"' + (crm.abogadoF === "sin" ? " selected" : "") + '>Sin asignar (' + crm.db.leads.filter(function (l) { return !l.abogadoId && l.etapa !== "perdido"; }).length + ')</option>' + lawyers().map(function (p) { return '<option value="' + esc(p.id) + '"' + (crm.abogadoF === p.id ? " selected" : "") + ">" + esc(p.nombre) + "</option>"; }).join("") + "</select>" : "") +
       '<div class="crm-toggle"><button type="button" data-mode="tablero" class="' + (crm.mode === "tablero" ? "is-on" : "") + '">Tablero</button><button type="button" data-mode="lista" class="' + (crm.mode === "lista" ? "is-on" : "") + '">Lista</button></div>' +
       '<button type="button" class="btn btn--gold" id="crm-new">＋ Nuevo cliente</button><button type="button" class="btn btn--line" id="crm-reload" title="Traer solicitudes nuevas">⟳</button></div>' +
       (crm.mode === "tablero" ? board(leads) : list(leads));
     $("#crm-q", v).addEventListener("input", function (e) { crm.filtro = e.target.value; var pos = e.target.selectionStart; renderClientes(v); var q = $("#crm-q", v); q.focus(); q.setSelectionRange(pos, pos); });
+    if ($("#crm-law", v)) $("#crm-law", v).onchange = function (e) { crm.abogadoF = e.target.value; renderClientes(v); };
     $$("[data-mode]", v).forEach(function (b) { b.addEventListener("click", function () { crm.mode = b.getAttribute("data-mode"); renderClientes(v); }); });
     $("#crm-new", v).addEventListener("click", newLead);
     $("#crm-reload", v).addEventListener("click", async function () { await load(true); renderClientes(v); A.toast("Actualizado"); });
@@ -162,7 +173,7 @@
     return '<button type="button" class="crm-card" draggable="true" data-lead="' + l.id + '">' +
       '<span class="crm-card__top"><b>' + esc(l.nombre || "(sin nombre)") + '</b><span class="crm-days' + (dias > 3 && ["nuevo", "contactado", "propuesta"].indexOf(l.etapa) > -1 ? " is-late" : "") + '">' + (dias ? dias + " d" : "hoy") + "</span></span>" +
       '<span class="crm-card__svc">' + esc(l.servicio || "Sin servicio") + "</span>" +
-      '<span class="crm-card__meta">' + (val ? "<em>" + money(val) + "</em>" : "") + (docsPend ? '<i title="Documentos por firmar">✍️ ' + docsPend + "</i>" : "") + (nuevos ? '<i class="is-new" title="Archivos nuevos del cliente">📎 ' + nuevos + "</i>" : "") + (l.abogado ? "<i>⚖️ " + esc(firstName(l.abogado.replace(/^Dr[a]?\.\s*/, ""))) + "</i>" : "") + "</span>" +
+      '<span class="crm-card__meta">' + (val ? "<em>" + money(val) + "</em>" : "") + (docsPend ? '<i title="Documentos por firmar">✍️ ' + docsPend + "</i>" : "") + (nuevos ? '<i class="is-new" title="Archivos nuevos del cliente">📎 ' + nuevos + "</i>" : "") + (isAdmin() ? (lawyerName(l) ? "<i>⚖️ " + esc(firstName(lawyerName(l).replace(/^Dr[a]?\.\s*/, ""))) + "</i>" : '<i class="is-un">Sin asignar</i>') : "") + "</span>" +
       '<span class="crm-card__next">→ ' + esc(nextAction(l.etapa)) + "</span></button>";
   }
   function board(leads) {
@@ -183,7 +194,7 @@
       '<div class="crm-list">' + (filtered.map(function (l) { return card(l).replace("crm-card", "crm-card crm-card--row").replace(' draggable="true"', "").replace('<span class="crm-card__svc">', '<span class="crm-stage">' + esc(etapaName(l.etapa)) + '</span><span class="crm-card__svc">'); }).join("") || '<div class="empty">No hay clientes en esta etapa.</div>') + "</div>";
   }
   function newLead() {
-    var l = { id: "L" + Date.now().toString(36) + rid(4), createdAt: now(), etapaDesde: now(), nombre: "", telefono: "", email: "", ciudad: "", servicio: "", etapa: "nuevo", abogado: lawyers()[0].nombre, valor: 0, etiquetas: ["Manual"], actividad: [], notas: [], docs: [], pagos: [], requisitos: [], archivos: [] };
+    var l = { id: "L" + Date.now().toString(36) + rid(4), createdAt: now(), etapaDesde: now(), nombre: "", telefono: "", email: "", ciudad: "", servicio: "", etapa: "nuevo", abogadoId: isAdmin() ? "" : me().id, abogado: isAdmin() ? "" : me().nombre, valor: 0, etiquetas: ["Manual"], actividad: [], notas: [], docs: [], pagos: [], requisitos: [], archivos: [] };
     log(l, "creado", "Cliente creado manualmente.");
     crm.db.leads.unshift(l);
     openPanel(l.id, "resumen");
@@ -245,7 +256,7 @@
       '<div class="grid2">' + inp("ciudad", "Ciudad", l.ciudad) + inp("expedida", "Documento expedido en", l.expedida) + "</div>" +
       inp("direccion", "Dirección", l.direccion) +
       '<div class="grid2"><div class="f"><label>Servicio</label><select name="servicio">' + ['<option value="">Seleccione…</option>'].concat(svcs.map(function (s) { return "<option" + (s === l.servicio ? " selected" : "") + ">" + esc(s) + "</option>"; })).join("") + "</select></div>" +
-      '<div class="f"><label>Abogado a cargo</label><select name="abogado">' + lawyers().map(function (p) { return "<option" + (p.nombre === l.abogado ? " selected" : "") + ">" + esc(p.nombre) + "</option>"; }).join("") + "</select></div></div>" +
+      '<div class="f"><label>Abogado a cargo</label><select name="abogadoId"' + (isAdmin() ? "" : " disabled") + '><option value="">— Sin asignar —</option>' + lawyers().map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === l.abogadoId ? " selected" : "") + ">" + esc(p.nombre) + "</option>"; }).join("") + "</select></div></div>" +
       '<div class="grid2">' + inp("valor", "Honorarios acordados (COP)", l.valor ? Number(l.valor).toLocaleString("es-CO") : "", "text", "money") + inp("etiquetas", "Etiquetas (separadas por coma)", (l.etiquetas || []).join(", ")) + "</div>" +
       "</div>" +
       '<div class="crm-origin"><span>Origen</span>' + esc([l.origen && l.origen.formulario ? "Formulario: " + l.origen.formulario : "", l.origen && l.origen.utm_source ? "Campaña: " + [l.origen.utm_source, l.origen.utm_medium, l.origen.utm_campaign].filter(Boolean).join(" / ") : "", "Creado: " + A.fmtDate(l.createdAt)].filter(Boolean).join(" · ")) + "</div>" +
@@ -255,6 +266,7 @@
       el.addEventListener(el.tagName === "SELECT" ? "change" : "input", function () {
         if (el.getAttribute("data-money") !== null) { var n = el.value.replace(/\D/g, ""); el.value = n ? Number(n).toLocaleString("es-CO") : ""; l.valor = Number(n) || 0; }
         else if (el.name === "etiquetas") l.etiquetas = el.value.split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+        else if (el.name === "abogadoId") { assignLead(l, el.value); return; }
         else l[el.name] = el.value.trim();
         $(".crm-ph__t b", host).textContent = l.nombre || "Nuevo cliente";
         clearTimeout(t); t = setTimeout(function () { save(); }, 700);
@@ -290,7 +302,7 @@
   function bindNext(b, l) {
     $$("[data-next]", b).forEach(function (btn) {
       btn.addEventListener("click", function () {
-        var k = btn.getAttribute("data-next"), n = firstName(l.nombre), ab = l.abogado || "el equipo";
+        var k = btn.getAttribute("data-next"), n = firstName(l.nombre), ab = lawyerName(l) || "el equipo";
         var url = portalUrl(l);
         if (k === "saludo") { waOpen(l, "Hola " + n + " 👋, le saluda " + ab + " de Ariango Consultores. Recibimos su solicitud sobre *" + (l.servicio || "su caso") + "*. ¿Tiene unos minutos para contarme su situación y orientarle sobre la mejor solución?"); advance(l, "contactado", "primer contacto"); save(); renderPanel(); }
         if (k === "propuesta") editDoc(l, newDoc(l, "propuesta"));
@@ -384,7 +396,7 @@
   function findTemplate(name) { return plantillas().find(function (p) { return p.nombre === name; }); }
   function planFrom(name) { return (DEF.planes[name] || DEF.planes["50 / 50"]).map(function (r) { return { pct: r[0], concepto: r[1], momento: r[2] }; }); }
   function newDoc(l, tipo) {
-    var d = { id: "D" + rid(10), tipo: tipo, numero: "(se asigna al guardar)", creado: now(), estado: "borrador", data: { fecha: today(), abogado: lawyerData(l.abogado), cuentas: defaultAccounts() } };
+    var d = { id: "D" + rid(10), tipo: tipo, numero: "(se asigna al guardar)", creado: now(), estado: "borrador", data: { fecha: today(), abogado: lawyerData(l.abogadoId), cuentas: defaultAccounts() } };
     var cli = { nombre: l.nombre, cedula: l.cedula, expedida: l.expedida, direccion: l.direccion, ciudad: l.ciudad, telefono: l.telefono, email: l.email };
     var prop = lastDoc(l, "propuesta");
     if (tipo === "propuesta") applyTemplate(d.data, findTemplate(l.servicio) || plantillas()[0], l);
@@ -516,7 +528,7 @@
     if (!c.length) return '<p class="warn">Aún no hay cuentas bancarias. Agréguelas en <a href="#documentos" data-ex2>Documentos y cuentas</a>.</p>';
     return chips("cuentas", c.map(function (x) { return [x.id, x.banco + " · " + x.tipo + " " + String(x.numero).slice(-4)]; }), sel, true);
   }
-  function lawyerPick(cur) { return '<div class="f"><label>Abogado responsable</label><select data-lawyer>' + lawyers().map(function (p) { return "<option" + (cur && p.nombre === cur.nombre ? " selected" : "") + ">" + esc(p.nombre) + "</option>"; }).join("") + "</select></div>"; }
+  function lawyerPick(cur) { return '<div class="f"><label>Abogado responsable</label><select data-lawyer>' + lawyers().map(function (p) { return '<option value="' + esc(p.id) + '"' + (cur && (p.id === cur.id || p.nombre === cur.nombre) ? " selected" : "") + ">" + esc(p.nombre) + "</option>"; }).join("") + "</select></div>"; }
   function clientFields(c) {
     return '<div class="grid2">' + text("cliente.nombre", "Nombre completo", c.nombre) + text("cliente.cedula", "Documento de identidad", c.cedula) + "</div>" +
       '<div class="grid2">' + text("cliente.expedida", "Expedido en", c.expedida) + text("cliente.ciudad", "Ciudad de domicilio", c.ciudad) + "</div>" +
@@ -842,7 +854,8 @@
      ========================================================================== */
   A.VIEWS.documentos = async function (v) {
     v.innerHTML = '<div class="empty">Cargando…</div>';
-    try { await load(); } catch (e) { v.innerHTML = '<div class="empty">' + esc(e.message) + "</div>"; return; }
+    try { await load(true); } catch (e) { v.innerHTML = '<div class="empty">' + esc(e.message) + "</div>"; return; }
+    if (!isAdmin()) { location.hash = "perfil"; return; }
     var c = cfg(), f = c.firma;
     v.innerHTML =
       '<div class="card"><h2>Datos de la firma</h2><p class="muted">Aparecen en el encabezado, el pie y las firmas de todos los documentos.</p><div class="form" id="firmf">' +
@@ -857,7 +870,7 @@
       '<button type="button" class="btn btn--gold" id="firm-save">Guardar datos</button></div></div>' +
 
       '<div class="card"><h2>Firma de los abogados</h2><p class="muted">Dibuje la firma con el dedo o el mouse, o suba una imagen. Se estampa en propuestas, contratos, poderes y recibos.</p>' +
-      '<div class="f"><label>Abogado</label><select id="sig-who">' + lawyers().map(function (p) { return "<option>" + esc(p.nombre) + "</option>"; }).join("") + "</select></div>" +
+      '<div class="f"><label>Abogado</label><select id="sig-who"><option value="firma">Representante legal (firma de la empresa: contratos y recibos)</option>' + lawyers().map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.nombre) + "</option>"; }).join("") + "</select><small>Cada abogado también puede dibujar su firma en «Mi perfil».</small></div>" +
       '<div class="crm-sigpad"><canvas id="sig-pad"></canvas><img id="sig-cur" alt=""><span>Firme aquí</span></div>' +
       '<div class="crm-row"><button type="button" class="btn btn--line btn--sm" id="sig-clear">Borrar</button><button type="button" class="btn btn--line btn--sm" id="sig-up">Subir imagen</button><button type="button" class="btn btn--gold btn--sm" id="sig-save">Guardar firma</button></div></div>' +
 
@@ -880,19 +893,35 @@
     // Firma
     var cv = $("#sig-pad", v), cx = cv.getContext("2d"), drew = false, down = false, last;
     function size() { var r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; cv.width = r.width * dpr; cv.height = r.height * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.lineWidth = 2.6; cx.lineCap = "round"; cx.lineJoin = "round"; cx.strokeStyle = "#0A1A30"; drew = false; }
-    function showCur() { var img = $("#sig-cur", v), s = c.firmas[$("#sig-who", v).value]; img.src = s || ""; img.style.display = s ? "block" : "none"; }
+    function curSig() { var id = $("#sig-who", v).value; if (id === "firma") return f.firmaImg || ""; var p = lawyerById(id) || {}; return p.firmaImg || c.firmas[p.nombre] || ""; }
+    async function storeSig(img) {
+      var id = $("#sig-who", v).value, p = lawyerById(id) || {};
+      if (id === "firma") { f.firmaImg = img; save("Firma del representante legal guardada"); showCur(); return; }
+      if (/^U/.test(id)) {
+        try { await A.api("/api/users", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: id, firmaImg: img }) }); p.firmaImg = img; await load(true); A.toast("Firma guardada"); } catch (e) { A.toast(e.message, true); }
+      } else { c.firmas[p.nombre] = img; save("Firma guardada"); }
+      showCur();
+    }
+    function showCur() { var img = $("#sig-cur", v), s = curSig(); img.src = s || ""; img.style.display = s ? "block" : "none"; }
     requestAnimationFrame(function () { size(); showCur(); });
     function P(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
     cv.addEventListener("pointerdown", function (e) { e.preventDefault(); cv.setPointerCapture(e.pointerId); down = true; last = P(e); $("#sig-cur", v).style.display = "none"; });
     cv.addEventListener("pointermove", function (e) { if (!down) return; var p = P(e); cx.beginPath(); cx.moveTo(last.x, last.y); cx.lineTo(p.x, p.y); cx.stroke(); last = p; drew = true; });
     ["pointerup", "pointercancel"].forEach(function (ev) { cv.addEventListener(ev, function () { down = false; }); });
-    $("#sig-who", v).onchange = function () { cx.clearRect(0, 0, cv.width, cv.height); drew = false; showCur(); };
-    $("#sig-clear", v).onclick = function () { cx.clearRect(0, 0, cv.width, cv.height); drew = false; };
-    $("#sig-save", v).onclick = function () { if (!drew) { A.toast("Dibuje la firma primero", true); return; } c.firmas[$("#sig-who", v).value] = trim(cv); save("Firma guardada"); cx.clearRect(0, 0, cv.width, cv.height); drew = false; showCur(); };
+    var pending = "";
+    $("#sig-who", v).onchange = function () { cx.clearRect(0, 0, cv.width, cv.height); drew = false; pending = ""; showCur(); };
+    $("#sig-clear", v).onclick = function () { cx.clearRect(0, 0, cv.width, cv.height); drew = false; pending = ""; showCur(); };
+    $("#sig-save", v).onclick = function () {
+      if (pending) { var img0 = pending; pending = ""; storeSig(img0); return; }
+      if (drew) { var img = trim(cv); cx.clearRect(0, 0, cv.width, cv.height); drew = false; storeSig(img); return; }
+      A.toast(curSig() ? "Esta firma ya está guardada. Dibuje o suba otra para reemplazarla." : "Dibuje la firma o suba una imagen.", !curSig());
+    };
     $("#sig-up", v).onclick = async function () {
       var fl = await window.ACUpload.pick("image/png,image/jpeg,image/webp"); if (!fl.length) return;
-      var blob = await window.ACUpload.compress(fl[0], { keepPng: true, maxSize: 700 });
-      var rd = new FileReader(); rd.onload = function () { c.firmas[$("#sig-who", v).value] = rd.result; save("Firma guardada"); showCur(); }; rd.readAsDataURL(blob);
+      try { pending = await sigFromFile(fl[0]); } catch (e) { A.toast(e.message, true); return; }
+      cx.clearRect(0, 0, cv.width, cv.height); drew = false;
+      var im = $("#sig-cur", v); im.src = pending; im.style.display = "block";
+      storeSig(pending); pending = "";
     };
     // Cuentas
     $("#acc-add", v).onclick = function () { editAccount(-1); };
@@ -910,6 +939,30 @@
     var o = document.createElement("canvas"), sw = x1 - x0 + 20, sh2 = y1 - y0 + 20, s = Math.min(1, 600 / sw);
     o.width = sw * s; o.height = sh2 * s; o.getContext("2d").drawImage(cv, Math.max(0, x0 - 10), Math.max(0, y0 - 10), sw, sh2, 0, 0, o.width, o.height);
     return o.toDataURL("image/png");
+  }
+  /* Convierte una foto o escaneo de la firma en PNG con fondo transparente y recortado. */
+  function sigFromFile(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("No se pudo leer la imagen")); };
+      img.onload = function () {
+        var s = Math.min(1, 900 / Math.max(img.naturalWidth, img.naturalHeight));
+        var c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+        var x = c.getContext("2d"); x.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+        var d = x.getImageData(0, 0, c.width, c.height), p = d.data;
+        for (var i = 0; i < p.length; i += 4) {
+          var lum = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
+          if (lum > 215) p[i + 3] = 0;                       // fondo claro → transparente
+          else if (lum > 150) p[i + 3] = Math.round(p[i + 3] * (215 - lum) / 65); // bordes suaves
+        }
+        x.putImageData(d, 0, 0);
+        var out = trim(c);
+        if (out.length > 240000) { // reduce si es muy pesada
+          var t = new Image(); t.onload = function () { var k = document.createElement("canvas"); k.width = Math.round(t.width * 0.6); k.height = Math.round(t.height * 0.6); k.getContext("2d").drawImage(t, 0, 0, k.width, k.height); resolve(k.toDataURL("image/png")); }; t.src = out;
+        } else resolve(out);
+      };
+      img.src = url;
+    });
   }
   var BANCOS = ["Bancolombia", "Banco de Bogotá", "Davivienda", "BBVA", "Banco de Occidente", "Banco Popular", "Banco AV Villas", "Banco Caja Social", "Scotiabank Colpatria", "Banco Agrario", "Itaú", "Nequi", "Daviplata", "Otro"];
   var TIPOS_CTA = ["Cuenta de ahorros", "Cuenta corriente", "Nequi", "Daviplata", "Llave Bre-B"];
@@ -963,13 +1016,179 @@
       }, "Guardar plantilla");
   }
 
+  /* ---------- Asignación de casos ---------- */
+  function assignLead(l, id) {
+    var p = lawyerById(id);
+    l.abogadoId = id || ""; l.abogado = p ? p.nombre : "";
+    (l.docs || []).forEach(function (d) { if (d.estado === "borrador" && d.data) d.data.abogado = lawyerData(l.abogadoId); });
+    log(l, "asignacion", p ? "Asignado a " + p.nombre + "." : "Quedó sin asignar.");
+    save(p ? "Caso asignado a " + p.nombre : "Caso sin asignar");
+    renderPanel();
+    if (p && p.telefono && p.id !== me().id) {
+      sheet("Avisar al abogado", '<p class="muted">¿Desea avisarle a <b>' + esc(p.nombre) + "</b> por WhatsApp que tiene un caso nuevo?</p>", function () {
+        return function () {
+          var tel = String(p.telefono).replace(/\D/g, ""); if (tel.length === 10) tel = "57" + tel;
+          window.open("https://wa.me/" + tel + "?text=" + encodeURIComponent("Hola " + firstName(p.nombre.replace(/^Dr[a]?\.\s*/, "")) + ", se te asignó un caso nuevo en Ariango Consultores:\n\n👤 " + (l.nombre || "Cliente") + "\n📄 " + (l.servicio || "Sin servicio") + "\n📞 " + (l.telefono || "") + "\n\nIngresa al panel para atenderlo: " + location.origin + "/admin/#clientes"), "_blank", "noopener");
+        };
+      }, "Avisar por WhatsApp");
+    }
+  }
+
+  /* ==========================================================================
+     Vista: Abogados (solo administrador)
+     ========================================================================== */
+  A.TITLES.abogados = "Abogados y accesos";
+  A.TITLES.perfil = "Mi perfil";
+  A.VIEWS.abogados = async function (v) {
+    v.innerHTML = '<div class="empty">Cargando…</div>';
+    try { await load(true); } catch (e) { v.innerHTML = '<div class="empty">' + esc(e.message) + "</div>"; return; }
+    if (!isAdmin()) { location.hash = "perfil"; return; }
+    var mes = new Date().toISOString().slice(0, 7);
+    var list = users();
+    function stats(id) {
+      var ls = crm.db.leads.filter(function (l) { return l.abogadoId === id; });
+      return {
+        activos: ls.filter(function (l) { return ["finalizado", "perdido"].indexOf(l.etapa) < 0; }).length,
+        nuevos: ls.filter(function (l) { return l.etapa === "nuevo"; }).length,
+        cobrado: ls.reduce(function (s, l) { return s + (l.pagos || []).filter(function (p) { return String(p.fecha).slice(0, 7) === mes; }).reduce(function (a, p) { return a + (Number(p.valor) || 0); }, 0); }, 0),
+        porCobrar: ls.filter(function (l) { return ["perdido", "nuevo", "contactado", "propuesta"].indexOf(l.etapa) < 0; }).reduce(function (s, l) { return s + Math.max(0, valor(l) - pagado(l)); }, 0)
+      };
+    }
+    var sinAsignar = crm.db.leads.filter(function (l) { return !l.abogadoId && l.etapa !== "perdido"; }).length;
+    v.innerHTML =
+      '<div class="card"><div class="list-head"><div><h2>Abogados del bufete</h2><p class="muted" style="margin:0">Cada abogado entra con su correo y contraseña, y solo ve los casos que tiene asignados.</p></div><button type="button" class="btn btn--gold" id="u-new">＋ Crear abogado</button></div></div>' +
+      '<div class="card"><h2>Asignación de solicitudes nuevas</h2><p class="muted">Cómo se reparten las solicitudes que llegan desde la página web.</p>' +
+      '<div class="crm-toggle crm-toggle--wide"><button type="button" data-asg="manual" class="' + ((crm.db.config.asignacion || "manual") === "manual" ? "is-on" : "") + '">Manual (yo las asigno)</button><button type="button" data-asg="rotacion" class="' + (crm.db.config.asignacion === "rotacion" ? "is-on" : "") + '">Automática por turnos</button></div>' +
+      (sinAsignar ? '<p class="warn" style="margin:12px 0 0">Hay <b>' + sinAsignar + '</b> caso(s) sin asignar. <a href="#clientes" id="u-unassigned">Verlos</a></p>' : "") + "</div>" +
+      (list.length ? '<div class="crm-team">' + list.map(function (u) {
+        var st = stats(u.id);
+        return '<div class="crm-law' + (u.activo === false ? " is-off" : "") + '"><div class="crm-law__top"><span class="crm-law__av">' + esc((u.nombre || "?").replace(/^Dr[a]?\.\s*/, "").split(" ").map(function (x) { return x[0]; }).slice(0, 2).join("")) + "</span>" +
+          '<div><b>' + esc(u.nombre) + "</b><small>" + esc(u.email) + "</small>" +
+          '<div class="tags"><span class="tag ' + (u.rol === "admin" ? "tag--warn" : "") + '">' + (u.rol === "admin" ? "Administrador" : "Abogado") + "</span>" + (u.activo === false ? '<span class="tag tag--off">Inactivo</span>' : "") + (u.recibeCasos === false ? '<span class="tag">No recibe turnos</span>' : "") + (u.firmaImg ? '<span class="tag tag--ok">Firma ✓</span>' : '<span class="tag tag--off">Sin firma</span>') + "</div></div></div>" +
+          '<div class="crm-law__st"><div><b>' + st.activos + "</b><span>Casos activos</span></div><div><b>" + st.nuevos + "</b><span>Nuevos</span></div><div><b>" + money(st.cobrado) + "</b><span>Cobrado mes</span></div><div><b>" + money(st.porCobrar) + "</b><span>Por cobrar</span></div></div>" +
+          '<div class="crm-row"><button type="button" class="btn btn--line btn--sm" data-u-cases="' + u.id + '">Ver sus casos</button><button type="button" class="btn btn--line btn--sm" data-u-edit="' + u.id + '">✏️ Editar</button><button type="button" class="btn btn--line btn--sm" data-u-pass="' + u.id + '">🔑 Contraseña</button></div></div>';
+      }).join("") + "</div>" : '<div class="empty">Aún no hay abogados. Cree el primero para asignarle casos.</div>');
+    $("#u-new", v).onclick = function () { editUser(null); };
+    $$("[data-asg]", v).forEach(function (b) { b.onclick = async function () { try { await A.api("/api/users", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ asignacion: b.getAttribute("data-asg") }) }); A.toast("Asignación actualizada"); A.route(); } catch (e) { A.toast(e.message, true); } }; });
+    var un = $("#u-unassigned", v); if (un) un.onclick = function () { crm.abogadoF = "sin"; };
+    $$("[data-u-cases]", v).forEach(function (b) { b.onclick = function () { crm.abogadoF = b.getAttribute("data-u-cases"); location.hash = "clientes"; }; });
+    $$("[data-u-edit]", v).forEach(function (b) { b.onclick = function () { editUser(users().find(function (u) { return u.id === b.getAttribute("data-u-edit"); })); }; });
+    $$("[data-u-pass]", v).forEach(function (b) { b.onclick = function () { resetPass(users().find(function (u) { return u.id === b.getAttribute("data-u-pass"); })); }; });
+  };
+  function genPass() { var a = new Uint8Array(10); crypto.getRandomValues(a); return "Ac-" + Array.prototype.map.call(a, function (x) { return "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"[x % 55]; }).join(""); }
+  function editUser(u) {
+    var isNew = !u; u = u || { rol: "abogado", activo: true, recibeCasos: true };
+    var pw = isNew ? genPass() : "";
+    sheet(isNew ? "Crear abogado" : "Editar abogado",
+      '<div class="form" id="uf">' +
+      '<div class="grid2">' + fi("nombre", "Nombre completo (como firma)", u.nombre) + fi("email", "Correo (será su usuario)", u.email) + "</div>" +
+      (isNew ? '<div class="f"><label>Contraseña inicial</label><input type="text" name="password" value="' + pw + '"><small>Compártala con el abogado; podrá cambiarla en «Mi perfil».</small></div>' : "") +
+      '<div class="f"><label>Rol</label><div class="crm-chipset" data-one="rol"><button type="button" data-v="abogado" class="' + (u.rol !== "admin" ? "is-on" : "") + '">Abogado (solo sus casos)</button><button type="button" data-v="admin" class="' + (u.rol === "admin" ? "is-on" : "") + '">Administrador (ve todo)</button></div></div>' +
+      '<div class="grid2">' + fi("cargo", "Cargo", u.cargo || "Abogado") + fi("especialidad", "Especialidad", u.especialidad) + "</div>" +
+      '<div class="grid2">' + fi("cedula", "Cédula", u.cedula) + fi("tarjeta", "Tarjeta profesional", u.tarjeta) + "</div>" +
+      '<div class="grid2">' + fi("telefono", "WhatsApp (para avisos y para sus clientes)", u.telefono) + fi("ciudad", "Ciudad", u.ciudad || "Cúcuta") + "</div>" +
+      '<label class="check"><input type="checkbox" name="activo"' + (u.activo !== false ? " checked" : "") + "><span>Cuenta activa<small>Si la desactiva, no podrá ingresar y se cierran sus sesiones.</small></span></label>" +
+      '<label class="check"><input type="checkbox" name="recibeCasos"' + (u.recibeCasos !== false ? " checked" : "") + "><span>Recibe casos nuevos en la asignación automática</span></label>" +
+      (!isNew ? '<button type="button" class="btn btn--danger btn--sm" data-udel>Eliminar cuenta</button>' : "") + "</div>",
+      function (box) {
+        var rol = u.rol || "abogado";
+        $$('[data-one="rol"] button', box).forEach(function (x) { x.onclick = function () { rol = x.getAttribute("data-v"); $$('[data-one="rol"] button', box).forEach(function (y) { y.classList.toggle("is-on", y === x); }); }; });
+        var del = $("[data-udel]", box);
+        if (del) del.onclick = async function () {
+          if (!confirm("¿Eliminar la cuenta de " + u.nombre + "? Sus casos quedarán sin asignar.")) return;
+          try { await A.api("/api/users?id=" + encodeURIComponent(u.id), { method: "DELETE" }); A.toast("Cuenta eliminada"); closeSheet(); A.route(); } catch (e) { A.toast(e.message, true); }
+        };
+        return function () {
+          var o = { rol: rol };
+          $$("input[name]", box).forEach(function (el) { o[el.name] = el.type === "checkbox" ? el.checked : el.value.trim(); });
+          if (!isNew) o.id = u.id;
+          A.api("/api/users", { method: isNew ? "POST" : "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(o) }).then(function () {
+            A.toast(isNew ? "Abogado creado" : "Datos guardados");
+            if (isNew) shareAccess(o.nombre, o.email, o.password, o.telefono);
+            A.route();
+          }, function (e) { A.toast(e.message, true); });
+        };
+      }, isNew ? "Crear cuenta" : "Guardar");
+  }
+  function shareAccess(nombre, email, pass, tel) {
+    var msg = "Hola " + firstName(String(nombre).replace(/^Dr[a]?\.\s*/, "")) + ", bienvenido(a) al panel de Ariango Consultores.\n\n🔗 " + location.origin + "/admin/\n👤 Usuario: " + email + "\n🔑 Contraseña: " + pass + "\n\nAl ingresar, cambia tu contraseña y dibuja tu firma en «Mi perfil».";
+    sheet("Datos de acceso", '<p class="muted">Comparta estos datos con el abogado. Por seguridad, la contraseña no se volverá a mostrar.</p><div class="crm-link" style="white-space:pre-wrap;font-family:inherit">' + esc(msg) + '</div><div class="crm-grid2"><button type="button" class="btn btn--line" data-c>Copiar</button>' + (tel ? '<button type="button" class="btn btn--wa" data-w>Enviar por WhatsApp</button>' : "") + "</div>", function (box) {
+      $("[data-c]", box).onclick = function () { navigator.clipboard.writeText(msg); A.toast("Copiado"); };
+      var w = $("[data-w]", box); if (w) w.onclick = function () { var t = String(tel).replace(/\D/g, ""); if (t.length === 10) t = "57" + t; window.open("https://wa.me/" + t + "?text=" + encodeURIComponent(msg), "_blank", "noopener"); };
+    });
+  }
+  function resetPass(u) {
+    var pw = genPass();
+    sheet("Nueva contraseña", '<p class="muted">Se asignará esta contraseña a <b>' + esc(u.nombre) + '</b> y se cerrarán sus sesiones abiertas.</p><div class="f"><label>Nueva contraseña</label><input type="text" name="np" value="' + pw + '"></div>', function (box) {
+      return function () {
+        var np = $("[name=np]", box).value.trim();
+        A.api("/api/users", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: u.id, password: np }) }).then(function () { A.toast("Contraseña cambiada"); shareAccess(u.nombre, u.email, np, u.telefono); }, function (e) { A.toast(e.message, true); });
+      };
+    }, "Cambiar contraseña");
+  }
+
+  /* ==========================================================================
+     Vista: Mi perfil (cada abogado)
+     ========================================================================== */
+  A.VIEWS.perfil = async function (v) {
+    v.innerHTML = '<div class="empty">Cargando…</div>';
+    var r;
+    try { r = await A.api("/api/me"); } catch (e) { v.innerHTML = '<div class="empty">' + esc(e.message) + "</div>"; return; }
+    var u = r.usuario;
+    if (u.id === "owner") { v.innerHTML = '<div class="card"><h2>Administrador principal</h2><p class="muted">Su acceso se configura en Vercel con la variable <code>ADMIN_PASSWORD</code>. Para firmar documentos, cree su propia cuenta de abogado en <a href="#abogados">Abogados y accesos</a>.</p></div>'; return; }
+    v.innerHTML =
+      '<div class="card"><h2>Mis datos</h2><p class="muted">Aparecen en las propuestas, contratos y poderes de sus casos, y en el portal de sus clientes.</p><div class="form" id="pf">' +
+      '<div class="grid2">' + fi("nombre", "Nombre completo", u.nombre) + fi("cargo", "Cargo", u.cargo) + "</div>" +
+      '<div class="grid2">' + fi("cedula", "Cédula", u.cedula) + fi("tarjeta", "Tarjeta profesional", u.tarjeta) + "</div>" +
+      '<div class="grid2">' + fi("telefono", "WhatsApp", u.telefono) + fi("especialidad", "Especialidad", u.especialidad) + "</div>" +
+      '<button type="button" class="btn btn--gold" id="pf-save">Guardar mis datos</button></div></div>' +
+      '<div class="card"><h2>Mi firma</h2><p class="muted">Dibújela con el dedo o el mouse. Se estampa en los documentos de sus casos.</p>' +
+      '<div class="crm-sigpad"><canvas id="mpad"></canvas><img id="mcur" alt=""' + (u.firmaImg ? ' src="' + esc(u.firmaImg) + '"' : ' style="display:none"') + '><span>Firme aquí</span></div>' +
+      '<div class="crm-row"><button type="button" class="btn btn--line btn--sm" id="m-clear">Borrar</button><button type="button" class="btn btn--line btn--sm" id="m-up">Subir imagen</button><button type="button" class="btn btn--gold btn--sm" id="m-save">Guardar firma</button></div></div>' +
+      '<div class="card"><h2>Cambiar contraseña</h2><div class="form"><div class="grid2"><div class="f"><label>Contraseña actual</label><input type="password" id="pw1" autocomplete="current-password"></div><div class="f"><label>Nueva contraseña (mín. 8)</label><input type="password" id="pw2" autocomplete="new-password"></div></div><button type="button" class="btn btn--navy" id="pw-save">Cambiar contraseña</button></div></div>';
+    async function put(body, msg) {
+      try { await A.api("/api/me", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); A.toast(msg); crm.db = null; } catch (e) { A.toast(e.message, true); }
+    }
+    $("#pf-save", v).onclick = function () { var o = {}; $$("#pf input", v).forEach(function (el) { o[el.name] = el.value.trim(); }); put(o, "Datos guardados"); };
+    $("#pw-save", v).onclick = function () { put({ actual: $("#pw1", v).value, nueva: $("#pw2", v).value }, "Contraseña cambiada"); };
+    var pad = sigPad($("#mpad", v), $("#mcur", v));
+    $("#m-clear", v).onclick = pad.clear;
+    $("#m-save", v).onclick = function () { if (!pad.drew()) { A.toast(u.firmaImg ? "Su firma ya está guardada. Dibuje o suba otra para reemplazarla." : "Dibuje su firma o suba una imagen.", !u.firmaImg); return; } var img = trim($("#mpad", v)); put({ firmaImg: img }, "Firma guardada"); u.firmaImg = img; $("#mcur", v).src = img; $("#mcur", v).style.display = "block"; pad.clear(); };
+    $("#m-up", v).onclick = async function () {
+      var fl = await window.ACUpload.pick("image/png,image/jpeg,image/webp"); if (!fl.length) return;
+      try { var img = await sigFromFile(fl[0]); pad.clear(); $("#mcur", v).src = img; $("#mcur", v).style.display = "block"; await put({ firmaImg: img }, "Firma guardada"); u.firmaImg = img; } catch (e) { A.toast(e.message, true); }
+    };
+  };
+  function sigPad(cv, cur) {
+    var cx = cv.getContext("2d"), down = false, drew = false, last;
+    function size() { var r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; cv.width = r.width * dpr; cv.height = r.height * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.lineWidth = 2.6; cx.lineCap = "round"; cx.lineJoin = "round"; cx.strokeStyle = "#0A1A30"; }
+    requestAnimationFrame(size);
+    function P(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+    cv.addEventListener("pointerdown", function (e) { e.preventDefault(); cv.setPointerCapture(e.pointerId); down = true; last = P(e); if (cur) cur.style.display = "none"; });
+    cv.addEventListener("pointermove", function (e) { if (!down) return; var p = P(e); cx.beginPath(); cx.moveTo(last.x, last.y); cx.lineTo(p.x, p.y); cx.stroke(); last = p; drew = true; });
+    ["pointerup", "pointercancel"].forEach(function (ev) { cv.addEventListener(ev, function () { down = false; }); });
+    return { clear: function () { cx.clearRect(0, 0, cv.width, cv.height); drew = false; }, drew: function () { return drew; } };
+  }
+
   /* ==========================================================================
      Inicio: resumen del CRM
      ========================================================================== */
   var baseInicio = A.VIEWS.inicio;
   A.VIEWS.inicio = function (v) {
-    baseInicio(v);
+    var lawyer = A.state.user && A.state.user.rol !== "admin";
+    if (lawyer) v.innerHTML = '<div class="card hello"><h2>Hola, ' + esc(firstName(String(A.state.user.nombre || "").replace(/^Dr[a]?\.\s*/, ""))) + ' 👋</h2><p>Aquí ve sus casos asignados, sus pendientes y sus clientes nuevos.</p></div>';
+    else baseInicio(v);
     load().then(function () {
+      if (lawyer) {
+        var mine = crm.db.leads, mes = new Date().toISOString().slice(0, 7);
+        var st = document.createElement("div");
+        st.className = "crm-stats";
+        st.innerHTML = "<div><b>" + mine.filter(function (l) { return ["finalizado", "perdido"].indexOf(l.etapa) < 0; }).length + "</b><span>Casos activos</span></div><div><b>" +
+          mine.filter(function (l) { return (l.archivos || []).some(function (f) { return f.por === "cliente" && !f.revisado; }); }).length + "</b><span>Con documentos nuevos</span></div><div><b>" +
+          money(mine.reduce(function (s2, l) { return s2 + (l.pagos || []).filter(function (p) { return String(p.fecha).slice(0, 7) === mes; }).reduce(function (a, p) { return a + (Number(p.valor) || 0); }, 0); }, 0)) + "</b><span>Cobrado este mes</span></div><div><b>" +
+          money(mine.filter(function (l) { return ["perdido", "nuevo", "contactado", "propuesta"].indexOf(l.etapa) < 0; }).reduce(function (s2, l) { return s2 + Math.max(0, valor(l) - pagado(l)); }, 0)) + "</b><span>Por cobrar</span></div>";
+        v.appendChild(st);
+      }
       var nuevos = crm.db.leads.filter(function (l) { return l.etapa === "nuevo"; });
       var firmar = crm.db.leads.filter(function (l) { return (l.docs || []).some(function (d) { return d.firma && !d._seen; }); });
       var box = document.createElement("div");

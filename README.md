@@ -89,6 +89,16 @@ Abra `https://ariangoconsultores.com/admin` (también aparece como **“Acceso�
 - **Documentos y cuentas:** datos de la firma, firma de cada abogado, cuentas bancarias y plantillas de servicio (precio, plan de pagos, alcance, requisitos).
 - Los datos de los clientes y sus archivos se guardan **cifrados** (AES-256-GCM).
 
+## Abogados y accesos
+
+- **Panel → ⚖️ Abogados y accesos** (solo administrador): cree una cuenta por abogado con nombre, correo, contraseña inicial, cédula, tarjeta profesional y WhatsApp. El panel le arma el mensaje con los datos de acceso para enviárselo.
+- **Roles:** *Abogado* ve solo sus casos y su perfil; *Administrador* ve y gestiona todo.
+- **Ingreso:** los abogados entran con **correo y contraseña**. El administrador principal entra solo con `ADMIN_PASSWORD`.
+- **Asignación:** en la ficha de cada cliente (campo «Abogado a cargo»), con aviso opcional al abogado por WhatsApp. También puede ser **automática por turnos** para las solicitudes de la página web.
+- **Mi perfil:** cada abogado actualiza sus datos, **dibuja o sube su firma** (el fondo de la foto se vuelve transparente) y cambia su contraseña.
+- **Firma del representante legal:** en Documentos y cuentas → «Firma de los abogados» → «Representante legal». Se usa en «Por LA FIRMA» de contratos y recibos.
+- Al desactivar una cuenta o cambiarle la contraseña, sus sesiones abiertas se cierran.
+
 ## Captura de clientes (leads)
 
 Cuando alguien deja sus datos:
