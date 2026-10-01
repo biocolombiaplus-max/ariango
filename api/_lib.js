@@ -152,3 +152,49 @@ export async function fetchStoredJson(url) {
   if (!r.ok) throw new Error("No se pudo leer el contenido guardado");
   return r.json();
 }
+
+/* ---------- Cifrado de datos de clientes (AES-256-GCM) ----------
+   Los datos del CRM se guardan cifrados: aunque alguien obtuviera la URL del
+   archivo, no podría leerlo. La clave sale de DATA_KEY (o SESSION_SECRET).
+   IMPORTANTE: si cambia esa variable, los datos anteriores no se podrán leer. */
+function dataKey() {
+  const base = process.env.DATA_KEY || process.env.SESSION_SECRET || "ac-data:" + (process.env.ADMIN_PASSWORD || "");
+  return crypto.createHash("sha256").update("ariango-crm|" + base).digest();
+}
+export function encryptJson(obj) {
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv("aes-256-gcm", dataKey(), iv);
+  const enc = Buffer.concat([c.update(JSON.stringify(obj), "utf8"), c.final()]);
+  return Buffer.concat([iv, c.getAuthTag(), enc]);
+}
+export function decryptJson(buf) {
+  const d = crypto.createDecipheriv("aes-256-gcm", dataKey(), buf.subarray(0, 12));
+  d.setAuthTag(buf.subarray(12, 28));
+  return JSON.parse(Buffer.concat([d.update(buf.subarray(28)), d.final()]).toString("utf8"));
+}
+export async function fetchStoredBuffer(url) {
+  if (url.startsWith("/__data/")) return fs.readFile(path.join(LOCAL_DIR, url.slice(8)));
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error("No se pudo leer el archivo guardado");
+  return Buffer.from(await r.arrayBuffer());
+}
+export function safeEqual(a, b) {
+  const x = Buffer.from(String(a || "")), y = Buffer.from(String(b || ""));
+  return x.length === y.length && x.length > 0 && crypto.timingSafeEqual(x, y);
+}
+export function clientIp(req) {
+  return String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "").split(",")[0].trim();
+}
+export function encryptBuffer(buf) {
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv("aes-256-gcm", dataKey(), iv);
+  const enc = Buffer.concat([c.update(buf), c.final()]);
+  return Buffer.concat([iv, c.getAuthTag(), enc]);
+}
+export function decryptBuffer(buf) {
+  const d = crypto.createDecipheriv("aes-256-gcm", dataKey(), buf.subarray(0, 12));
+  d.setAuthTag(buf.subarray(12, 28));
+  return Buffer.concat([d.update(buf.subarray(28)), d.final()]);
+}
+export function sha256(s) { return crypto.createHash("sha256").update(s).digest("hex"); }
+export function randomId(n = 10) { return crypto.randomBytes(n).toString("base64url"); }

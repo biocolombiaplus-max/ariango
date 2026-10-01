@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mi expediente | Ariango Consultores</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#071326">
+  <link rel="icon" type="image/png" href="/assets/img/favicon.png">
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/docs.css?v=20261002a">
+  <link rel="stylesheet" href="/cliente/portal.css?v=20261002a">
+</head>
+<body>
+  <header class="p-top">
+    <div class="p-wrap p-top__in">
+      <a class="p-brand" href="/"><img src="/assets/img/logo-ac.png" alt=""><span><b>ARIANGO</b><small>Portal del cliente</small></span></a>
+      <span class="p-secure">🔒 Conexión segura</span>
+    </div>
+  </header>
+
+  <main class="p-wrap" id="app">
+    <div class="p-loading"><span></span>Cargando su expediente…</div>
+  </main>
+
+  <!-- Visor de documento -->
+  <div class="p-viewer" id="viewer" hidden>
+    <div class="p-viewer__bar">
+      <button type="button" class="p-icon" data-close-viewer aria-label="Cerrar">←</button>
+      <b id="viewer-title">Documento</b>
+      <button type="button" class="p-icon" id="viewer-pdf" aria-label="Descargar PDF">⬇</button>
+    </div>
+    <div class="p-viewer__body"><div class="p-docfit" id="docfit"><div id="docbox"></div></div></div>
+    <div class="p-viewer__actions" id="viewer-actions"></div>
+  </div>
+
+  <!-- Firma -->
+  <div class="p-sheet" id="sign" hidden>
+    <div class="p-sheet__bg" data-close-sign></div>
+    <form class="p-sheet__panel" id="sign-form" novalidate>
+      <span class="p-handle"></span>
+      <h2>Firmar documento</h2>
+      <p class="p-muted" id="sign-doc"></p>
+      <label class="p-field"><span>Nombre completo</span><input name="nombre" autocomplete="name" required placeholder="Como aparece en su documento"></label>
+      <label class="p-field"><span>Número de documento de identidad</span><input name="documento" inputmode="numeric" required placeholder="Cédula, pasaporte o PPT"></label>
+      <div class="p-field"><span>Su firma <small>(dibuje con el dedo)</small></span>
+        <div class="p-pad"><canvas id="pad"></canvas><em id="pad-hint">Firme aquí</em><button type="button" class="p-clear" id="pad-clear">Borrar</button></div>
+      </div>
+      <label class="p-check"><input type="checkbox" name="acepto" required><span>He leído el documento completo, acepto su contenido y autorizo firmarlo electrónicamente (Ley 527 de 1999).</span></label>
+      <button type="submit" class="p-btn p-btn--gold">✍️ Firmar documento</button>
+      <p class="p-msg" id="sign-msg" role="alert"></p>
+    </form>
+  </div>
+
+  <div class="p-toast" id="toast" hidden></div>
+
+  <script src="/assets/js/ac-upload.js?v=20261002a"></script>
+  <script src="/assets/js/docs-render.js?v=20261002a"></script>
+  <script src="/cliente/portal.js?v=20261002a"></script>
+</body>
+</html>

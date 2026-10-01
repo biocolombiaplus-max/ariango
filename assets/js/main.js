@@ -523,7 +523,7 @@
     if (c && Object.keys(c).length) applyContent(c);
     initAnalytics();
     if (editing) {
-      ["assets/js/ac-upload.js?v=20261001c", "assets/js/editor.js?v=20261001c"].reduce(function (p, src) {
+      ["assets/js/ac-upload.js?v=20261002a", "assets/js/editor.js?v=20261002a"].reduce(function (p, src) {
         return p.then(function () {
           return new Promise(function (res, rej) { var sc = document.createElement("script"); sc.src = src; sc.onload = res; sc.onerror = rej; document.body.appendChild(sc); });
         });
@@ -616,6 +616,10 @@
     Object.keys(data).forEach(function (k) { body.append(k, data[k]); });
     return fetch(url, { method: "POST", mode: "no-cors", body: body, keepalive: true }).catch(function () {});
   }
+  function sendToCRM(data) {
+    if (location.protocol === "file:") return Promise.resolve();
+    return fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), keepalive: true }).catch(function () {});
+  }
   function sendToEmail(data) {
     var s = settings();
     if (!s.formSubmitEnabled || !s.email) return Promise.resolve();
@@ -685,7 +689,7 @@
       track("generate_lead", { service: data.servicio, form: data.formulario });
 
       var link = waLink(buildWhatsAppMessage(data));
-      withTimeout(Promise.all([sendToSheets(data), sendToEmail(data)]), 3500).then(function () {
+      withTimeout(Promise.all([sendToCRM(data), sendToSheets(data), sendToEmail(data)]), 3500).then(function () {
         msg.classList.add("is-ok");
         msg.innerHTML = "¡Gracias, " + esc(data.nombre.split(" ")[0]) + "! Le llevamos a WhatsApp… Si no se abre, <a href=\"" + esc(link) + "\" target=\"_blank\" rel=\"noopener\">toque aquí</a>.";
         label.textContent = "¡Listo! Abriendo WhatsApp…";

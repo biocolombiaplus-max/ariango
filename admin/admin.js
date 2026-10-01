@@ -133,7 +133,7 @@
     if (!TITLES[v]) v = "inicio";
     $("#view-title").textContent = TITLES[v];
     $$("[data-view]").forEach(function (a) { a.classList.toggle("is-active", a.getAttribute("data-view") === v); });
-    VIEWS[v]($("#view"));
+    var view = $("#view"); view.className = "view view--" + v; VIEWS[v](view);
     window.scrollTo(0, 0);
   }
 
@@ -425,6 +425,8 @@
     var s = Object.assign({}, CFG, state.draft.settings || {});
     v.innerHTML =
       '<div class="quick"><a href="/?editar=1"><span>✏️</span><b>Editor visual</b><small>Editar textos de la página</small></a>' +
+      '<a href="#documentos"><span>🏦</span><b>Documentos y cuentas</b><small>Firma, cuentas, plantillas</small></a>' +
+      '<a href="#equipo"><span>👥</span><b>Equipo</b><small>Abogados y fotos</small></a>' +
       '<a href="#historial"><span>🕘</span><b>Historial</b><small>Versiones anteriores</small></a>' +
       '<button type="button" id="logout2"><span>🚪</span><b>Cerrar sesión</b><small>Salir del panel</small></button></div>' +
       '<div class="card"><h2>Contacto</h2><p class="muted">Se actualiza en toda la página y en el mensaje de WhatsApp.</p><div class="form" id="set-contact">' +
@@ -481,6 +483,12 @@
         });
       });
     } catch (e) { $("#hist", v).innerHTML = '<div class="empty">' + esc(e.message) + "</div>"; }
+  };
+
+  /* API para módulos adicionales (CRM, documentos) */
+  window.ACAdmin = {
+    VIEWS: VIEWS, TITLES: TITLES, state: state, toast: toast, api: api, esc: esc, uid: uid, route: route,
+    team: function () { return team(); }, fmtDate: fmtDate
   };
 
   /* ---------- Arranque ---------- */

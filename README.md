@@ -46,6 +46,8 @@ En **Settings → Environment Variables** agregue:
 | `ADMIN_PASSWORD` | Una contraseña fuerte (mínimo 12 caracteres, con números y símbolos) |
 | `SESSION_SECRET` | Un texto largo y aleatorio (por ejemplo, 40 letras y números al azar) |
 
+| `DATA_KEY` | Otro texto largo y aleatorio. Cifra los datos de los clientes. **No lo cambie nunca**: si lo cambia, los datos guardados no se podrán leer. |
+
 ### 3. Volver a desplegar
 **Deployments → ⋯ (en el último) → Redeploy.** Las variables nuevas solo se aplican después de desplegar de nuevo.
 
@@ -71,6 +73,21 @@ Abra `https://ariangoconsultores.com/admin` (también aparece como **“Acceso�
 - No use superlativos que no pueda probar (por ejemplo, “el bufete más grande”), por el régimen de publicidad engañosa del Estatuto del Consumidor (Ley 1480 de 2011).
 
 ---
+
+## CRM, documentos y portal del cliente
+
+**Panel → 💼 Clientes** funciona como un embudo de ventas (estilo Kommo):
+
+`Nuevo → Contactado → Propuesta enviada → Propuesta aceptada → Anticipo pagado → Contrato firmado → Documentación → En trámite → Finalizado` (y `Perdido`).
+
+- Cada solicitud de la página web entra sola a **Nuevo**.
+- **El embudo avanza solo:** al enviar la propuesta, cuando el cliente la firma, al registrar el pago, cuando firma el contrato y cuando envía sus documentos.
+- La ficha del cliente sugiere **el siguiente paso** con un botón (saludar, cobrar el anticipo, enviar el contrato, pedir documentos, informar avances, pedir testimonio).
+- **Documentos con vista previa en vivo:** propuesta, contrato, poder especial, acta de recepción de documentos, recibo de pago y documentos libres (autorización de datos, declaración, paz y salvo…). Se llenan con selectores rápidos y plantillas por servicio.
+- **Portal del cliente** (`/cliente/…`, enlace privado): el cliente ve su avance, **firma con el dedo** desde el celular, descarga en PDF, sube fotos de sus documentos y ve las cuentas para pagar.
+- Cada firma queda con un **certificado**: nombre, documento, fecha y hora, IP, dispositivo y huella SHA-256 del documento (Ley 527 de 1999 y Decreto 2364 de 2012).
+- **Documentos y cuentas:** datos de la firma, firma de cada abogado, cuentas bancarias y plantillas de servicio (precio, plan de pagos, alcance, requisitos).
+- Los datos de los clientes y sus archivos se guardan **cifrados** (AES-256-GCM).
 
 ## Captura de clientes (leads)
 
