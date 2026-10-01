@@ -396,14 +396,185 @@
   var TIPOS = { propuesta: "Propuesta", contrato: "Contrato", recibo: "Recibo de pago", poder: "Poder especial", acta: "Acta de recepción", libre: "Documento" };
   var PREFIJO = { propuesta: "PRO", contrato: "CON", recibo: "REC", poder: "POD", acta: "ACT", libre: "DOC" };
 
-  function render(doc, ctx) {
-    ctx = ctx || {};
+  function base(doc, ctx) {
     if (doc.tipo === "contrato") return contract(doc, ctx);
     if (doc.tipo === "recibo") return receipt(doc, ctx);
     if (doc.tipo === "poder") return poder(doc, ctx);
     if (doc.tipo === "acta") return acta(doc, ctx);
     if (doc.tipo === "libre") return libre(doc, ctx);
     return proposal(doc, ctx);
+  }
+
+  /* ---------- Texto ajustado a mano (zonas editables) ----------
+     El documento se divide en 4 zonas: encabezado, cuerpo, firmas y pie.
+     Lo que el abogado edita se guarda en data.zonas con datos variables
+     ({CLIENTE}, {CEDULA}, {FECHA}…) que se siguen llenando solos. */
+  var ZONAS = ["head", "body", "sigs", "foot"];
+  var VARS = {
+    NUMERO: "Número del documento", FECHA: "Fecha del documento", CLIENTE: "Nombre del cliente / poderdante", CEDULA: "Documento del cliente",
+    TELEFONO_CLIENTE: "Teléfono del cliente", EMAIL_CLIENTE: "Correo del cliente", CIUDAD_CLIENTE: "Ciudad del cliente",
+    ABOGADO: "Nombre del abogado", CC_ABOGADO: "Cédula del abogado", TP_ABOGADO: "Tarjeta profesional del abogado", EMAIL_APODERADO: "Correo del apoderado",
+    SERVICIO: "Servicio", TOTAL: "Valor total", TOTAL_LETRAS: "Valor total en letras",
+    DESTINATARIO: "Destinatario", REFERENCIA: "Referencia", OBJETO: "Objeto del poder", FACULTADES: "Facultades", RADICADO: "Radicado"
+  };
+  function mainClient(doc, ctx) {
+    var d = doc.data || {};
+    var p = (d.poderdantes && d.poderdantes[0]) || d.cliente || {};
+    var c = ctx.cliente || {};
+    return { nombre: p.nombre || c.nombre, cedula: p.cedula || c.cedula, telefono: p.telefono || c.telefono, email: p.email || c.email, ciudad: p.ciudad || c.ciudad };
+  }
+  /** Valores actuales de los datos variables de un documento. */
+  function vars(doc, ctx) {
+    ctx = ctx || {};
+    var d = doc.data || {}, ab = d.abogado || {}, f = ctx.firma || {}, cli = mainClient(doc, ctx);
+    var tot = doc.tipo === "recibo" ? Number(d.valor) || 0 : doc.tipo === "propuesta" || doc.tipo === "contrato" ? totals(d).total : 0;
+    var v = {
+      NUMERO: doc.numero, FECHA: fecha(d.fecha || doc.creado),
+      CLIENTE: cli.nombre, CEDULA: cli.cedula, TELEFONO_CLIENTE: cli.telefono, EMAIL_CLIENTE: cli.email, CIUDAD_CLIENTE: cli.ciudad,
+      ABOGADO: ab.nombre || (doc.tipo === "poder" ? f.representante : ""), CC_ABOGADO: ab.cedula || (doc.tipo === "poder" ? f.cedulaRep : ""), TP_ABOGADO: ab.tarjeta || (doc.tipo === "poder" ? f.tarjeta : ""),
+      SERVICIO: d.servicio, TOTAL: tot ? money(tot) : "", TOTAL_LETRAS: tot ? letras(tot) : ""
+    };
+    if (doc.tipo === "poder") {
+      Object.assign(v, {
+        EMAIL_APODERADO: d.emailApoderado, DESTINATARIO: d.destinatario, REFERENCIA: fillPoder(d.referencia, d), RADICADO: d.radicado,
+        OBJETO: fillPoder(d.objeto, d).replace(/\.\s*$/, ""), FACULTADES: (d.facultades || []).join(", ")
+      });
+      (d.poderdantes || []).slice(1).forEach(function (p, i) { v["PODERDANTE_" + (i + 2)] = p.nombre; v["CEDULA_" + (i + 2)] = p.cedula; });
+      Object.keys(d.asunto || {}).forEach(function (k) { v[k] = d.asunto[k]; });
+    }
+    return v;
+  }
+  var OK_TAGS = /^(P|BR|B|STRONG|I|EM|U|S|SMALL|SUP|SUB|SPAN|DIV|H1|H2|H3|H4|UL|OL|LI|TABLE|THEAD|TBODY|TFOOT|TR|TD|TH|DL|DT|DD|IMG|HR|HEADER|FOOTER|SECTION|BLOCKQUOTE|FONT)$/;
+  var OK_CSS = /^(text-align|font-weight|font-style|text-decoration|text-decoration-line|margin-left|padding-left|font-size|color|background-color)$/;
+  /** Limpia el HTML editado: solo etiquetas y estilos de texto seguros. */
+  function clean(node) {
+    Array.prototype.slice.call(node.childNodes).forEach(function (n) {
+      if (n.nodeType === 3) return;
+      if (n.nodeType !== 1) { n.remove(); return; }
+      var tag = n.tagName.toUpperCase();
+      if (!OK_TAGS.test(tag)) {
+        if (/^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|LINK|META|svg|SVG|MATH|TEMPLATE|NOSCRIPT|INPUT|TEXTAREA|SELECT|BUTTON|FORM)$/i.test(tag)) { n.remove(); return; }
+        clean(n);
+        while (n.firstChild) n.parentNode.insertBefore(n.firstChild, n);
+        n.remove(); return;
+      }
+      Array.prototype.slice.call(n.attributes).forEach(function (a) {
+        var k = a.name.toLowerCase(), val = a.value;
+        if (k === "class" && /^[\w\s-]*$/.test(val)) return;
+        if ((k === "colspan" || k === "rowspan") && /^\d{1,2}$/.test(val)) return;
+        if (k === "align" && /^(left|right|center|justify)$/i.test(val)) return;
+        if (k === "src" && tag === "IMG" && (/^data:image\/(png|jpe?g|webp|gif);base64,[\w+/=]+$/i.test(val) || /^https:\/\//i.test(val) || /^\/(?!\/)/.test(val))) return;
+        if (k === "style") {
+          var keep = val.split(";").map(function (x) { return x.trim(); }).filter(function (x) {
+            var m = x.match(/^([\w-]+)\s*:\s*([^;]+)$/);
+            return m && OK_CSS.test(m[1].toLowerCase()) && /^[\w\s.,%#()-]+$/.test(m[2]) && !/url|expression/i.test(m[2]);
+          });
+          if (keep.length) { n.setAttribute("style", keep.join("; ")); return; }
+        }
+        n.removeAttribute(a.name);
+      });
+      clean(n);
+    });
+    return node;
+  }
+  function frag(html) { var t = document.createElement("template"); t.innerHTML = html; return t.content; }
+  function isZoneless(el) { return el.classList && (el.classList.contains("acd-watermark") || el.classList.contains("acd-cert")); }
+  /** Separa el artículo generado en sus zonas (elementos DOM). */
+  function split(art) {
+    var kids = Array.prototype.slice.call(art.children);
+    var head = kids.filter(function (k) { return k.classList.contains("acd-head"); })[0];
+    var foot = kids.filter(function (k) { return k.classList.contains("acd-foot"); })[0];
+    var sigs = kids.filter(function (k) { return k.classList.contains("acd-sigs"); }).pop();
+    var body = kids.filter(function (k) { return k !== head && k !== foot && k !== sigs && !isZoneless(k); });
+    return { head: head, foot: foot, sigs: sigs, body: body };
+  }
+  function fillVars(html, v) {
+    return String(html || "").replace(/\{([A-Z][A-Z0-9_]*)\}/g, function (m, k) {
+      if (!Object.prototype.hasOwnProperty.call(v, k)) return m;
+      return v[k] ? esc(v[k]) : "__________";
+    });
+  }
+  function applyZones(html, doc, ctx) {
+    var z = (doc.data || {}).zonas;
+    if (!z || typeof document === "undefined") return html;
+    var f = frag(html), art = f.firstElementChild;
+    if (!art) return html;
+    var parts = split(art), v = vars(doc, ctx);
+    function block(code, tag, cls) { var w = document.createElement(tag); w.className = cls; w.innerHTML = fillVars(code, v); clean(w); return w; }
+    if (z.head != null && parts.head) { var h = block(z.head, "header", "acd-head"); parts.head.replaceWith(h); parts.head = h; }
+    if (z.foot != null && parts.foot) parts.foot.replaceWith(block(z.foot, "footer", "acd-foot"));
+    if (z.sigs != null && parts.sigs) {
+      var ns = block(z.sigs, "div", parts.sigs.className);
+      // Las imágenes de firma siempre salen de los datos (no del texto editado)
+      var orig = parts.sigs.querySelectorAll(".acd-sig"), mine = ns.querySelectorAll(".acd-sig");
+      Array.prototype.forEach.call(mine, function (s, i) {
+        var o = orig[i] && orig[i].querySelector(".acd-sigimg, .acd-sigspace");
+        var cur = s.querySelector(".acd-sigimg, .acd-sigspace");
+        var put = o ? o.cloneNode(true) : document.createElement("div");
+        if (!o) put.className = "acd-sigspace";
+        if (cur) cur.replaceWith(put); else s.insertBefore(put, s.firstChild);
+      });
+      parts.sigs.replaceWith(ns); parts.sigs = ns;
+    }
+    if (z.body != null) {
+      parts.body.forEach(function (b) { b.remove(); });
+      var nb = block(z.body, "div", "acd-custom");
+      var anchor = parts.sigs || art.querySelector(".acd-cert") || art.querySelector(".acd-foot");
+      if (anchor) art.insertBefore(nb, anchor); else art.appendChild(nb);
+    }
+    var box = document.createElement("div"); box.appendChild(f);
+    return box.innerHTML;
+  }
+  /** Convierte en datos variables los valores del documento que aparecen en el texto. */
+  function tokenize(root, v) {
+    var pairs = Object.keys(v).filter(function (k) { var x = String(v[k] || "").trim(); return x.length >= 4 && x !== "__________"; })
+      .map(function (k) { return [k, String(v[k]).trim()]; }).sort(function (a, b) { return b[1].length - a[1].length; });
+    var w = document.createTreeWalker(root, 4), n, nodes = [];
+    while ((n = w.nextNode())) nodes.push(n);
+    nodes.forEach(function (t) {
+      var s = t.data;
+      pairs.forEach(function (p) { if (s.indexOf(p[1]) > -1) s = s.split(p[1]).join("{" + p[0] + "}"); });
+      if (s !== t.data) t.data = s;
+    });
+    return root;
+  }
+  /** Lee las zonas de un documento que se editó en pantalla. */
+  function readZones(art, doc, ctx) {
+    var c = art.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll("[contenteditable]"), function (x) { x.removeAttribute("contenteditable"); });
+    c.removeAttribute("contenteditable");
+    var parts = split(c), v = vars(doc, ctx), out = {};
+    function code(el) { tokenize(el, v); clean(el); return el.innerHTML.trim(); }
+    if (parts.head) out.head = code(parts.head);
+    if (parts.foot) out.foot = code(parts.foot);
+    if (parts.sigs) {
+      Array.prototype.forEach.call(parts.sigs.querySelectorAll(".acd-sigimg"), function (i) { var s = document.createElement("div"); s.className = "acd-sigspace"; i.replaceWith(s); });
+      out.sigs = code(parts.sigs);
+    }
+    var box = document.createElement("div");
+    parts.body.forEach(function (b) {
+      if (b.classList.contains("acd-custom")) { while (b.firstChild) box.appendChild(b.firstChild); } else box.appendChild(b);
+    });
+    out.body = code(box);
+    return out;
+  }
+
+  /** Prepara el documento en pantalla para escribir sobre él. */
+  function editable(art) {
+    if (!art) return;
+    var p = split(art), wrap = p.body.length === 1 && p.body[0].classList.contains("acd-custom") ? p.body[0] : null;
+    if (!wrap) {
+      wrap = document.createElement("div"); wrap.className = "acd-custom";
+      if (p.body[0]) art.insertBefore(wrap, p.body[0]); else art.insertBefore(wrap, p.sigs || p.foot || null);
+      p.body.forEach(function (b) { wrap.appendChild(b); });
+    }
+    [p.head, wrap, p.sigs, p.foot].forEach(function (z) { if (z) { z.setAttribute("contenteditable", "true"); z.classList.add("acd-ed"); z.setAttribute("spellcheck", "true"); } });
+    Array.prototype.forEach.call(art.querySelectorAll("img, .acd-sigspace, .acd-sigline"), function (i) { i.setAttribute("contenteditable", "false"); });
+  }
+
+  function render(doc, ctx) {
+    ctx = ctx || {};
+    return applyZones(base(doc, ctx), doc, ctx);
   }
 
   DEFAULTS.libres = [
@@ -424,5 +595,5 @@
     { id: "ven", nombre: "Trámite en Venezuela (Registro Civil)", forma: "apostilla", destinatario: "Autoridad competente del Registro Civil — República Bolivariana de Venezuela", ciudadDest: "", referencia: "Nulidad / rectificación del acta de nacimiento N.º {ACTA}", objeto: "solicite y tramite la nulidad o rectificación del acta de nacimiento N.º {ACTA} inserta en el Registro Civil de {LUGAR}, Venezuela, y realice todas las gestiones necesarias ante el Registro Civil, el SAIME, los tribunales y demás autoridades venezolanas", facultades: ["recibir", "desistir", "sustituir", "reasumir", "renunciar", "solicitar y aportar pruebas", "interponer recursos", "notificarse", "radicar y retirar documentos", "solicitar copias y certificados"] },
     { id: "admin", nombre: "Trámites administrativos y derechos de petición", forma: "datos", destinatario: "Entidades públicas y privadas", ciudadDest: "", referencia: "Poder especial para trámites administrativos", objeto: "presente solicitudes y derechos de petición, solicite y retire copias, certificados y documentos, y adelante los trámites administrativos relacionados con {ASUNTO}", facultades: ["recibir", "sustituir", "reasumir", "renunciar", "notificarse", "radicar y retirar documentos", "solicitar copias y certificados", "presentar derechos de petición", "interponer recursos"] }
   ];
-  window.ACDocs = { render: render, pdf: pdf, ETAPAS: ETAPAS, TIPOS: TIPOS, PREFIJO: PREFIJO, money: money, letras: letras, fecha: fecha, totals: totals, planRows: planRows, DEFAULTS: DEFAULTS, esc: esc };
+  window.ACDocs = { render: render, base: function (doc, ctx) { return base(doc, ctx || {}); }, vars: vars, VARS: VARS, readZones: readZones, editable: editable, clean: clean, ZONAS: ZONAS, pdf: pdf, ETAPAS: ETAPAS, TIPOS: TIPOS, PREFIJO: PREFIJO, money: money, letras: letras, fecha: fecha, totals: totals, planRows: planRows, DEFAULTS: DEFAULTS, esc: esc };
 })();

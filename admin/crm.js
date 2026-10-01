@@ -415,6 +415,7 @@
     }
     if (tipo === "acta") Object.assign(d.data, { servicio: l.servicio, requisitos: JSON.parse(JSON.stringify((l.requisitos || []).length ? l.requisitos : [])) });
     if (tipo === "libre") Object.assign(d.data, { titulo: DEF.libres[0][0], cuerpo: fillLead(DEF.libres[0][1], l), firmaFirma: true });
+    useTemplate(d);
     return d;
   }
   function fillLead(t, l) { return String(t).split("{CLIENTE}").join(l.nombre || "________").split("{CEDULA}").join(l.cedula || "________").split("{SERVICIO}").join((l.servicio || "________").toLowerCase()); }
@@ -444,16 +445,32 @@
     ed.innerHTML =
       '<header class="crm-eh"><button type="button" class="crm-x" data-ex aria-label="Cerrar">✕</button><div><b>' + (E.isNew ? "Nuevo: " : "Editar: ") + esc(E.d.tipo === "libre" ? "Documento" : D.TIPOS[E.d.tipo]) + "</b><span>" + esc(l.nombre) + "</span></div>" +
       '<div class="crm-eh__tabs"><button type="button" data-et="form" class="is-on">Editar</button><button type="button" data-et="prev">Vista previa</button></div></header>' +
-      '<div class="crm-eb"><div class="crm-ef" id="ef"></div><div class="crm-ep" id="ep"><div class="crm-ep__fit" id="epfit"></div></div></div>' +
-      '<footer class="crm-ef__foot"><span class="crm-total" id="etotal"></span><button type="button" class="btn btn--line" data-save="draft">Guardar borrador</button><button type="button" class="btn btn--wa" data-save="send">Guardar y enviar por WhatsApp</button></footer>';
+      '<div class="crm-eb"><div class="crm-ef"><div id="efnote"></div><div class="crm-ef__form" id="ef"></div><div class="crm-free" id="efree"></div></div>' +
+      '<div class="crm-ep" id="ep">' + toolsHtml() + '<div class="crm-ep__fit" id="epfit"></div></div></div>' +
+      '<footer class="crm-ef__foot"><span class="crm-total" id="etotal"></span>' +
+      '<button type="button" class="btn btn--line" data-save="draft" data-norm>Guardar borrador</button><button type="button" class="btn btn--wa" data-save="send" data-norm>Guardar y enviar por WhatsApp</button>' +
+      '<button type="button" class="btn btn--line" data-free="cancel">Cancelar</button>' + (isAdmin() ? '<button type="button" class="btn btn--line" data-free="tpl">⭐ Guardar como plantilla</button>' : "") + '<button type="button" class="btn btn--gold" data-free="ok">✓ Aplicar cambios</button></footer>';
     $("[data-ex]", ed).onclick = function () { if (confirm("¿Cerrar sin guardar los cambios?")) closeEditor(); };
     $$("[data-et]", ed).forEach(function (b) { b.onclick = function () { $$("[data-et]", ed).forEach(function (x) { x.classList.toggle("is-on", x === b); }); ed.classList.toggle("show-prev", b.getAttribute("data-et") === "prev"); fitPreview(); }; });
     $$("[data-save]", ed).forEach(function (b) { b.onclick = function () { commit(b.getAttribute("data-save") === "send"); }; });
+    $('[data-free="ok"]', ed).onclick = function () { applyFree(); A.toast("Cambios aplicados al documento"); };
+    $('[data-free="cancel"]', ed).onclick = function () { exitFree(); };
+    if ($('[data-free="tpl"]', ed)) $('[data-free="tpl"]', ed).onclick = saveAsTemplate;
+    bindTools();
+    ed.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-fx]");
+      if (!b) return;
+      var a = b.getAttribute("data-fx");
+      if (a === "edit") enterFree();
+      if (a === "reset") resetZones();
+    });
     FORMS[E.d.tipo]($("#ef", ed));
+    drawNote();
     preview();
   }
-  function closeEditor() { ed.hidden = true; ed.classList.remove("show-prev"); document.body.style.overflow = panel.open ? "hidden" : ""; }
+  function closeEditor() { ed.hidden = true; ed.classList.remove("show-prev", "is-free"); E.free = false; document.body.style.overflow = panel.open ? "hidden" : ""; }
   function preview() {
+    if (E.free) return;
     clearTimeout(E.t);
     E.t = setTimeout(function () {
       $("#epfit", ed).innerHTML = D.render(E.d, ctxFor(E.l, E.d));
@@ -470,7 +487,181 @@
   }
   window.addEventListener("resize", function () { if (!ed.hidden) fitPreview(); });
 
+  /* ---------- Edición libre sobre el documento (como en Word) ---------- */
+  function tplKey(d) { return d.tipo === "poder" ? "poder:" + (d.data.tipoPoder || "") : d.tipo === "libre" ? "libre:" + (d.data.titulo || "") : d.tipo; }
+  function tplName(d) {
+    if (d.tipo === "poder") { var t = DEF.tiposPoder.find(function (x) { return x.id === d.data.tipoPoder; }); return "Poder especial · " + (t ? t.nombre : "Personalizado"); }
+    if (d.tipo === "libre") return d.data.titulo || "Documento";
+    return D.TIPOS[d.tipo] || "Documento";
+  }
+  function docTemplates() { var c = cfg(); c.docPlantillas = c.docPlantillas || {}; return c.docPlantillas; }
+  function useTemplate(d) {
+    var t = docTemplates()[tplKey(d)];
+    if (t && t.zonas) { d.data.zonas = JSON.parse(JSON.stringify(t.zonas)); d.data.zonasDe = tplKey(d); }
+    else { delete d.data.zonas; delete d.data.zonasDe; }
+  }
+  /** Al cambiar de modelo: si había texto ajustado a mano, pide confirmación. */
+  function switchModel(d, fn) {
+    var hand = d.data.zonas && d.data.zonasDe !== tplKey(d);
+    if (hand && !confirm("Este documento tiene texto ajustado a mano. Al cambiar de modelo, ese texto se reemplaza. ¿Continuar?")) return false;
+    fn(); useTemplate(d); drawNote(); return true;
+  }
+  function drawNote() {
+    var n = $("#efnote", ed); if (!n) return;
+    var z = E.d.data.zonas, tpl = docTemplates()[tplKey(E.d)];
+    n.innerHTML = '<div class="crm-freecta' + (z ? " is-on" : "") + '">' +
+      (z ? "<b>✍️ Texto ajustado " + (E.d.data.zonasDe === tplKey(E.d) ? "con la plantilla del bufete" : "a mano") + "</b><p>Los datos automáticos (cliente, cédula, fecha, número, abogado, valores…) se siguen actualizando solos. Para cambiar el resto del texto, edítelo sobre el documento.</p>"
+        : "<b>¿Necesita cambiar el texto?</b><p>Escriba directamente sobre el documento, como en Word: encabezado, párrafos, cláusulas, firmas y pie de página.</p>") +
+      '<div class="crm-freecta__a"><button type="button" class="btn btn--gold btn--sm" data-fx="edit">✍️ ' + (z ? "Seguir editando el texto" : "Editar sobre el documento") + "</button>" +
+      (z ? '<button type="button" class="btn btn--line btn--sm" data-fx="reset">↩ Volver al texto automático</button>' : "") + "</div>" +
+      (tpl && !z ? '<small class="muted">Hay una plantilla del bufete para este documento.</small>' : "") + "</div>";
+  }
+  function resetZones() {
+    var tpl = docTemplates()[tplKey(E.d)];
+    var msg = tpl && E.d.data.zonasDe !== tplKey(E.d) ? "¿Quitar los cambios hechos a mano y volver a la plantilla del bufete?" : "¿Quitar los cambios hechos a mano y volver al texto automático del modelo?";
+    if (!confirm(msg)) return;
+    if (tpl && E.d.data.zonasDe !== tplKey(E.d)) useTemplate(E.d); else { delete E.d.data.zonas; delete E.d.data.zonasDe; }
+    if (E.free) exitFree(); else { drawNote(); preview(); }
+  }
+  var VAR_OPTS = function () {
+    var v = D.vars(E.d, ctxFor(E.l, E.d));
+    return Object.keys(v).filter(function (k) { return D.VARS[k] || /^(PODERDANTE|CEDULA)_\d+$/.test(k) || DEF.camposPoder[k]; }).map(function (k) {
+      return [k, (D.VARS[k] || DEF.camposPoder[k] || k.replace(/_/g, " ").toLowerCase()), v[k]];
+    });
+  };
+  function toolsHtml() {
+    var B = [["undo", "↶", "Deshacer"], ["redo", "↷", "Rehacer"], ["|"], ["bold", "<b>B</b>", "Negrita"], ["italic", "<i>I</i>", "Cursiva"], ["underline", "<u>S</u>", "Subrayado"], ["|"],
+      ["h", "Título", "Convertir en título"], ["p", "Párrafo", "Convertir en párrafo normal"], ["insertUnorderedList", "• Lista", "Lista con viñetas"], ["insertOrderedList", "1. Lista", "Lista numerada"], ["|"],
+      ["justifyLeft", "⇤", "Alinear a la izquierda"], ["justifyCenter", "≡", "Centrar"], ["justifyFull", "☰", "Justificar"], ["|"],
+      ["addp", "＋ Párrafo", "Agregar un párrafo debajo"], ["del", "🗑 Quitar", "Quitar el párrafo o línea donde está el cursor"], ["removeFormat", "⌫ Formato", "Quitar negrita, colores y estilos"]];
+    return '<div class="crm-tools" id="etools">' + B.map(function (b) {
+      return b[0] === "|" ? "<i></i>" : '<button type="button" data-cmd="' + b[0] + '" title="' + b[2] + '" aria-label="' + b[2] + '">' + b[1] + "</button>";
+    }).join("") + '<select id="evar" title="Insertar un dato del cliente o del caso"><option value="">＋ Insertar dato…</option></select></div>';
+  }
+  var savedRange = null;
+  function zoneOf(node) { var el = node && (node.nodeType === 1 ? node : node.parentElement); return el && el.closest(".acd-ed"); }
+  function keepRange() {
+    var sel = window.getSelection();
+    if (sel.rangeCount && zoneOf(sel.anchorNode)) savedRange = sel.getRangeAt(0).cloneRange();
+  }
+  function restoreRange() {
+    if (!savedRange) return false;
+    var z = zoneOf(savedRange.startContainer); if (!z) return false;
+    z.focus({ preventScroll: true });
+    var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedRange);
+    return true;
+  }
+  function curBlock() {
+    var sel = window.getSelection(); if (!sel.rangeCount) return null;
+    var el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+    var z = zoneOf(el); if (!z || el === z) return null;
+    var li = el.closest("li, tr, dt, dd"); if (li && z.contains(li)) return li;
+    while (el.parentElement && el.parentElement !== z) el = el.parentElement;
+    return el;
+  }
+  function fillVarSel() {
+    $("#evar", ed).innerHTML = '<option value="">＋ Insertar dato…</option>' + VAR_OPTS().map(function (o) { return '<option value="' + o[0] + '">' + esc(o[1]) + (o[2] ? " — " + esc(String(o[2]).slice(0, 40)) : " (vacío)") + "</option>"; }).join("");
+  }
+  function bindTools() {
+    document.addEventListener("selectionchange", function () { if (E.free) keepRange(); });
+    $$("#etools [data-cmd]", ed).forEach(function (b) {
+      b.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      b.addEventListener("click", function () {
+        if (!restoreRange()) { A.toast("Primero toque el texto que quiere cambiar", true); return; }
+        var c = b.getAttribute("data-cmd"), blk;
+        if (c === "h") { document.execCommand("formatBlock", false, "h3"); blk = curBlock(); if (blk && blk.tagName === "H3") blk.className = "acd-h3"; }
+        else if (c === "p") { document.execCommand("formatBlock", false, "p"); }
+        else if (c === "addp") {
+          blk = curBlock();
+          var np = document.createElement(blk && blk.tagName === "LI" ? "li" : "p");
+          np.textContent = "Escriba aquí el nuevo texto.";
+          if (blk) blk.after(np); else zoneOf(savedRange.startContainer).appendChild(np);
+          var r = document.createRange(); r.selectNodeContents(np); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        } else if (c === "del") {
+          blk = curBlock();
+          if (!blk) { A.toast("Toque dentro del párrafo que quiere quitar", true); return; }
+          if (blk.querySelector(".acd-sigimg") && !confirm("Esto quita un bloque de firma. ¿Continuar?")) return;
+          blk.remove(); savedRange = null;
+        } else document.execCommand(c, false, null);
+        keepRange();
+      });
+    });
+    var sel = $("#evar", ed);
+    sel.addEventListener("pointerdown", keepRange);
+    sel.addEventListener("focus", fillVarSel);
+    ["keyup", "mouseup", "input", "touchend"].forEach(function (ev) { $("#epfit", ed).addEventListener(ev, function () { if (E.free) keepRange(); }); });
+    sel.addEventListener("change", function () {
+      var k = sel.value; sel.value = ""; if (!k) return;
+      if (!restoreRange()) { A.toast("Primero toque el lugar del documento donde va el dato", true); return; }
+      var v = D.vars(E.d, ctxFor(E.l, E.d))[k];
+      document.execCommand("insertText", false, v ? String(v) : "{" + k + "}");
+      keepRange();
+    });
+  }
+  function freeGuide() {
+    return '<div class="crm-free__in"><h3>✍️ Edición sobre el documento</h3>' +
+      '<ol class="crm-free__steps"><li><b>Toque cualquier texto</b> del documento y escriba, borre o corrija. Funciona en el encabezado, el cuerpo, las firmas y el pie de página.</li>' +
+      "<li>Use la barra de arriba para <b>negrita</b>, títulos, listas, alinear, <b>＋ Párrafo</b> para agregar texto y <b>🗑 Quitar</b> para eliminar el párrafo donde está el cursor.</li>" +
+      "<li>Con <b>＋ Insertar dato</b> se agrega el nombre, la cédula, la fecha, el número u otro dato del caso. Esos datos se actualizan solos.</li>" +
+      "<li>Toque <b>✓ Aplicar cambios</b>. Luego guarde el documento.</li>" +
+      (isAdmin() ? "<li><b>⭐ Guardar como plantilla</b>: los próximos documentos de este tipo empezarán con este mismo texto, ya ajustado por usted.</li>" : "") + "</ol>" +
+      '<h4>Datos de este documento</h4><div class="crm-free__vars">' + VAR_OPTS().map(function (o) { return '<button type="button" data-ins="' + o[0] + '"><small>' + esc(o[1]) + "</small><b>" + esc(o[2] || "(vacío)") + "</b></button>"; }).join("") + "</div>" +
+      '<p class="muted">Las firmas dibujadas y el certificado de firma electrónica se agregan solos; no se pueden borrar ni alterar.</p></div>';
+  }
+  function enterFree() {
+    if (E.d.firma) { A.toast("Este documento ya fue firmado. Duplíquelo para hacer cambios.", true); return; }
+    E.free = true; clearTimeout(E.t);
+    ed.classList.add("is-free", "show-prev");
+    var fit = $("#epfit", ed);
+    fit.style.transform = ""; fit.style.width = ""; fit.style.height = "";
+    fit.innerHTML = D.render(E.d, ctxFor(E.l, E.d));
+    D.editable(fit.firstElementChild);
+    $("#efree", ed).innerHTML = freeGuide();
+    fillVarSel();
+    $$("[data-ins]", ed).forEach(function (b) {
+      b.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      b.onclick = function () {
+        if (!restoreRange()) { A.toast("Primero toque el lugar del documento donde va el dato", true); return; }
+        var v = D.vars(E.d, ctxFor(E.l, E.d))[b.getAttribute("data-ins")];
+        document.execCommand("insertText", false, v ? String(v) : "{" + b.getAttribute("data-ins") + "}");
+      };
+    });
+    savedRange = null;
+  }
+  function applyFree() {
+    var art = $("#epfit", ed).firstElementChild;
+    if (art) { E.d.data.zonas = D.readZones(art, E.d, ctxFor(E.l, E.d)); E.d.data.zonasDe = "mano"; }
+    exitFree();
+  }
+  function exitFree() {
+    E.free = false; savedRange = null;
+    ed.classList.remove("is-free");
+    if (window.innerWidth <= 900) ed.classList.remove("show-prev");
+    $$("[data-et]", ed).forEach(function (x) { x.classList.toggle("is-on", x.getAttribute("data-et") === (ed.classList.contains("show-prev") ? "prev" : "form")); });
+    $("#efree", ed).innerHTML = "";
+    drawNote(); preview();
+  }
+  function saveAsTemplate() {
+    var art = $("#epfit", ed).firstElementChild;
+    if (!art) return;
+    var z = D.readZones(art, E.d, ctxFor(E.l, E.d));
+    var key = tplKey(E.d), name = tplName(E.d), exists = docTemplates()[key];
+    var used = (JSON.stringify(z).match(/\{[A-Z][A-Z0-9_]*\}/g) || []).filter(function (x, i, a) { return a.indexOf(x) === i; });
+    sheet("⭐ Guardar como plantilla del bufete",
+      '<div class="form"><p>Los próximos documentos de <b>' + esc(name) + "</b> empezarán con este texto." + (exists ? " <b>Reemplaza la plantilla anterior.</b>" : "") + "</p>" +
+      (used.length ? '<p class="muted">Estos datos se llenarán solos con la información de cada cliente:</p><div class="crm-free__chips">' + used.map(function (u) { var k = u.slice(1, -1); return "<span>" + esc(D.VARS[k] || DEF.camposPoder[k] || k) + "</span>"; }).join("") + "</div>" : "") +
+      '<p class="muted">Revise que no queden nombres o números propios de este cliente escritos a mano. Si los hay, cámbielos con «＋ Insertar dato».</p></div>',
+      function () {
+        return function () {
+          docTemplates()[key] = { nombre: name, tipo: E.d.tipo, zonas: z, at: now(), por: me().nombre || "Administrador" };
+          E.d.data.zonas = JSON.parse(JSON.stringify(z)); E.d.data.zonasDe = key;
+          save("Plantilla guardada"); exitFree();
+        };
+      }, "Guardar plantilla");
+  }
+
   function commit(send) {
+    if (E.free) applyFree();
     var l = E.l, d = E.d;
     if (d.tipo === "propuesta" || d.tipo === "contrato") {
       var sum = (d.data.plan || []).reduce(function (s, r) { return s + (Number(r.pct) || 0); }, 0);
@@ -711,7 +902,7 @@
       var b = e.target.closest("[data-ptype]");
       if (b) {
         var t = DEF.tiposPoder.find(function (x) { return x.id === b.getAttribute("data-ptype"); });
-        applyPoderType(d, t); draw(); preview(); return;
+        switchModel(E.d, function () { applyPoderType(d, t); }); draw(); preview(); return;
       }
       var cal = e.target.closest("[data-pdcal] button");
       if (cal) { var i = +cal.closest("[data-pdcal]").getAttribute("data-pdcal"); d.poderdantes[i].calidad = cal.getAttribute("data-v"); d.asunto.CALIDAD = d.asunto.CALIDAD || d.poderdantes[0].calidad; draw(); preview(); return; }
@@ -753,7 +944,7 @@
       var b = e.target.closest('[data-chips="modelo"] button');
       if (!b) return;
       var m = DEF.libres.find(function (x) { return x[0] === b.getAttribute("data-v"); });
-      d.titulo = m[0]; d.cuerpo = fillLead(m[1], E.l); draw(); preview();
+      switchModel(E.d, function () { d.titulo = m[0]; d.cuerpo = fillLead(m[1], E.l); }); draw(); preview();
     }, true);
     draw();
   };
@@ -1110,7 +1301,8 @@
           '<button type="button" class="btn btn--navy btn--sm" data-hd="pdf" data-i="' + i + '">⬇ PDF</button>' +
           '<button type="button" class="btn btn--wa btn--sm" data-hd="send" data-i="' + i + '">Enviar</button>' +
           '<button type="button" class="icon" data-hd="more" data-i="' + i + '" title="Más">⋯</button></div></div>';
-      }).join("") + "</div>" : '<div class="empty">' + (rows.length ? "No hay documentos con ese filtro." : "Aún no hay documentos. Cree el primero con los botones de arriba.") + "</div>");
+      }).join("") + "</div>" : '<div class="empty">' + (rows.length ? "No hay documentos con ese filtro." : "Aún no hay documentos. Cree el primero con los botones de arriba.") + "</div>") +
+      tplSection();
     $("#h-q", v).addEventListener("input", function (e) { hub.q = e.target.value; var pos = e.target.selectionStart; renderHub(v); var x = $("#h-q", v); x.focus(); x.setSelectionRange(pos, pos); });
     $$("[data-ht]", v).forEach(function (b) { b.onclick = function () { hub.tipo = b.getAttribute("data-ht"); renderHub(v); }; });
     $$("[data-hnew]", v).forEach(function (b) { b.onclick = function () { pickClient(b.getAttribute("data-hnew")); }; });
@@ -1123,6 +1315,23 @@
         if (a === "more") docMenu(r.l, r.d);
       };
     });
+    $$("[data-tpldel]", v).forEach(function (b) {
+      b.onclick = function () {
+        var k = b.getAttribute("data-tpldel"), t = docTemplates()[k];
+        if (!t || !confirm("¿Quitar la plantilla «" + t.nombre + "»? Los documentos nuevos volverán a usar el modelo original. Los documentos ya creados no cambian.")) return;
+        delete docTemplates()[k]; save("Plantilla quitada"); renderHub(v);
+      };
+    });
+  }
+  function tplSection() {
+    var T = docTemplates(), keys = Object.keys(T).sort(function (a, b) { return (T[a].nombre || "").localeCompare(T[b].nombre || ""); });
+    return '<section class="crm-hubsec"><h3>⭐ Plantillas del bufete</h3>' +
+      '<p class="muted">Para ajustar un modelo a su manera: abra o cree un documento, toque <b>✍️ Editar sobre el documento</b>, corrija el texto (encabezado, cuerpo, firmas y pie) y toque <b>⭐ Guardar como plantilla</b>. Los documentos nuevos de ese tipo empezarán con ese texto y con los datos de cada cliente.</p>' +
+      (keys.length ? '<div class="crm-tpls">' + keys.map(function (k) {
+        var t = T[k];
+        return '<div class="crm-tpl"><span class="crm-doc__ic">' + esc(D.PREFIJO[t.tipo] || "DOC") + "</span><div><b>" + esc(t.nombre) + "</b><small>Actualizada el " + A.fmtDate(t.at) + (t.por ? " por " + esc(t.por) : "") + "</small></div>" +
+          (isAdmin() ? '<button type="button" class="btn btn--line btn--sm" data-tpldel="' + esc(k) + '">Quitar</button>' : "") + "</div>";
+      }).join("") + "</div>" : '<div class="empty">Aún no hay plantillas propias. Se usan los modelos originales.</div>') + "</section>";
   }
   function pickClient(tipo) {
     var name = (NUEVOS.find(function (n) { return n[0] === tipo; }) || [])[2];

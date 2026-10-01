@@ -99,6 +99,13 @@ Abra `https://ariangoconsultores.com/admin` (también aparece como **“Acceso�
   - facultades expresas (arts. 74 y 77 del CGP), correo del apoderado inscrito en el Registro Nacional de Abogados y apoderado sustituto;
   - forma de otorgamiento: mensaje de datos (Ley 2213 de 2022, art. 5), presentación personal en notaría, consulado o apostilla para el exterior.
 
+### Editar el texto del documento (como en Word)
+- En cualquier documento toque **✍️ Editar sobre el documento** y escriba directamente en la hoja: **encabezado, cuerpo, firmas y pie de página**.
+- Barra de herramientas: deshacer, negrita, cursiva, subrayado, títulos, listas, alinear, **＋ Párrafo**, **🗑 Quitar** (el párrafo donde está el cursor) y **＋ Insertar dato** (nombre, cédula, fecha, número, abogado, valores, causante…).
+- Los datos del cliente y del caso **se siguen actualizando solos** aunque el texto se haya ajustado a mano. Las firmas dibujadas y el certificado de firma electrónica no se pueden alterar.
+- **↩ Volver al texto automático** deshace los ajustes hechos a mano.
+- **⭐ Guardar como plantilla** (solo administrador): los nuevos documentos de ese tipo, y de ese modelo de poder, empiezan con el texto ajustado. Las plantillas aparecen en **📄 Documentos → Plantillas del bufete**, donde se pueden quitar para volver al modelo original.
+
 ## Abogados y accesos
 
 - **Panel → ⚖️ Abogados y accesos** (solo administrador): cree una cuenta por abogado con nombre, correo, contraseña inicial, cédula, tarjeta profesional y WhatsApp. El panel le arma el mensaje con los datos de acceso para enviárselo.
