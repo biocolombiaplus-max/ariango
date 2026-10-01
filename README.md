@@ -62,6 +62,7 @@ Abra `https://ariangoconsultores.com/admin` (también aparece como **“Acceso�
 - **🏆 Casos de éxito:** agregue casos con fotos o PDF de documentos, situación, solución, resultado y testimonio. Marque **“Caso real autorizado”** solo cuando tenga la autorización escrita del cliente.
 - **👥 Equipo:** foto, nombre, cargo, especialidad y tarjeta profesional de cada abogado. El que marque como **destacado** aparece en grande.
 - **🖼 Imágenes y fondos:** logo y fondo de cada una de las 14 secciones, con control de intensidad de la capa de color.
+- **✂️ Ajustar foto:** en cada fondo, en la foto de cada abogado y en la portada de cada caso. Arrastre la foto para moverla, use **Acercar** o elija **Foto completa** para que se vea entera sin recortes. Los fondos se pueden ajustar distinto para **computador** y **celular**.
 - **⚙️ Ajustes:** WhatsApp, teléfono, correo, dirección, horario, mapa, saludo del mensaje de WhatsApp, Google Sheets, Google Analytics y Pixel de Meta.
 - **🕘 Historial:** cada publicación guarda una copia. Puede restaurar cualquiera de las últimas 40.
 

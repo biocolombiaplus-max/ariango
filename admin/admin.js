@@ -223,6 +223,28 @@
       if (n < max && !add) box.insertAdjacentHTML("beforeend", '<button type="button" class="up-add">＋<br>Agregar</button>');
     }
   }
+  /* Ajuste de encuadre de la primera foto de un formulario */
+  function fitBtn() { return '<button type="button" class="btn btn--gold btn--sm fit-btn" data-fit-open>✂️ Ajustar cómo se ve la foto</button><small class="fit-state"></small>'; }
+  function bindFit(root, enc, title, frames) {
+    root._enc = enc || null;
+    var btn = $("[data-fit-open]", root), stt = $(".fit-state", root);
+    function first() { var u = uploaderValue(root)[0] || ""; return /\.pdf($|\?)/i.test(u) ? "" : u; }
+    function show() {
+      var u = first();
+      btn.hidden = !u;
+      stt.textContent = u && root._enc && root._enc.url === u ? "✓ Foto ajustada" : "";
+      var th = u && $('.up-img[data-url="' + u.replace(/"/g, "") + '"]', root);
+      if (th) th.setAttribute("style", "background-image:url('" + esc(u) + "');" + (root._enc && root._enc.url === u ? window.ACFrame.bgStyle(root._enc) : ""));
+    }
+    btn.onclick = async function () {
+      var u = first(); if (!u) return;
+      var r = await window.ACFrame.open({ url: u, title: title, frames: frames, value: root._enc && root._enc.url === u ? root._enc : null, fill: "#0A1A30" });
+      if (r) { root._enc = Object.assign({ url: u }, r); show(); }
+    };
+    new MutationObserver(show).observe($(".uploader", root), { childList: true });
+    show();
+  }
+  function fitVal(root, url) { return root._enc && url && root._enc.url === url ? root._enc : null; }
   function uploaderValue(root) { return $$(".up-img", root).map(function (d) { return d.getAttribute("data-url"); }); }
 
   /* Listas ordenables */
@@ -308,7 +330,7 @@
     openDrawer(i >= 0 ? "Editar caso de éxito" : "Nuevo caso de éxito",
       '<div class="form">' +
       '<div class="warn">🔒 <b>Antes de publicar:</b> obtenga autorización escrita del cliente y tache nombres, números de documento, NUIP, firmas y huellas en las imágenes (Ley 1581 de 2012 y secreto profesional).</div>' +
-      '<div class="f"><label>Imágenes de documentos (hasta 6)</label>' + uploaderHtml(c.imagenes || [], 6) + "<small>JPG, PNG o PDF. Las fotos se optimizan automáticamente.</small></div>" +
+      '<div class="f"><label>Imágenes de documentos (hasta 6)</label>' + uploaderHtml(c.imagenes || [], 6) + "<small>JPG, PNG o PDF. Las fotos se optimizan automáticamente. La primera es la portada del caso.</small>" + fitBtn() + "</div>" +
       field("categoria", "Categoría", c.categoria, { options: CATS.indexOf(c.categoria) < 0 ? [c.categoria].concat(CATS) : CATS }) +
       field("titulo", "Título del caso", c.titulo, { ph: "Ej. Nació en San Cristóbal, pero estaba registrada en Cúcuta" }) +
       field("situacion", "Situación (el problema)", c.situacion, { textarea: true, rows: 2 }) +
@@ -323,11 +345,13 @@
         var o = readForm(root);
         if (!o.titulo) { toast("Escriba un título", true); return false; }
         var item = Object.assign({}, c, o, { imagenes: uploaderValue(root) });
+        item.enc = fitVal(root, item.imagenes[0]); if (!item.enc) delete item.enc;
         if (i >= 0) cases()[i] = item; else cases().unshift(item);
         mark("cases"); route();
         toast("Caso guardado. Recuerde publicar.");
       });
     bindUploader($("#drawer-body"), { accept: "image/jpeg,image/png,image/webp,application/pdf", maxSize: 2200 });
+    bindFit($("#drawer-body"), c.enc, "Portada del caso", [{ id: "a", label: "Portada en la página", ratio: 16 / 10 }]);
   }
 
   /* ---------- Equipo ---------- */
@@ -337,7 +361,7 @@
       '<div class="list-head"><p class="muted" style="margin:0">El abogado marcado como <b>destacado</b> aparece en grande; los demás, en tarjetas.</p><button type="button" class="btn btn--gold" id="add-law">＋ Agregar abogado</button></div>' +
       '<div class="items" id="law-list">' + (list.length ? list.map(function (p, i) {
         return '<div class="item' + (p.visible === false ? " is-hidden" : "") + '">' +
-          '<div class="item__thumb item__thumb--round" style="' + (p.foto ? "background-image:url('" + esc(p.foto) + "')" : "") + '">' + (p.foto ? "" : "👤") + "</div>" +
+          '<div class="item__thumb item__thumb--round" style="' + (p.foto ? "background-image:url('" + esc(p.foto) + "');" + (p.enc && p.enc.url === p.foto ? window.ACFrame.bgStyle(p.enc) : "") : "") + '">' + (p.foto ? "" : "👤") + "</div>" +
           '<div class="item__main"><b>' + esc(p.nombre) + "</b><small>" + esc(p.cargo) + "</small>" +
           '<div class="tags">' + (p.destacado ? '<span class="tag tag--ok">★ Destacado</span>' : "") + (p.visible === false ? '<span class="tag tag--off">Oculto</span>' : "") + (!p.foto ? '<span class="tag tag--warn">Sin foto</span>' : "") + "</div></div>" +
           listActions(i, list.length, p.visible === false) + "</div>";
@@ -349,7 +373,7 @@
     var p = i >= 0 ? team()[i] : { id: uid(), visible: true, destacado: false };
     openDrawer(i >= 0 ? "Editar abogado" : "Nuevo abogado",
       '<div class="form">' +
-      '<div class="f"><label>Foto profesional</label>' + uploaderHtml(p.foto ? [p.foto] : [], 1) + "<small>Ideal: foto vertical, fondo neutro, buena luz.</small></div>" +
+      '<div class="f"><label>Foto profesional</label>' + uploaderHtml(p.foto ? [p.foto] : [], 1) + "<small>Ideal: foto vertical, fondo neutro, buena luz.</small>" + fitBtn() + "</div>" +
       field("nombre", "Nombre completo", p.nombre, { ph: "Dr. / Dra. …" }) +
       field("cargo", "Cargo", p.cargo, { ph: "Abogado(a) especialista en…" }) +
       field("especialidad", "Especialidad", p.especialidad, { ph: "Registro civil, familia, sucesiones…" }) +
@@ -361,12 +385,14 @@
         var o = readForm(root);
         if (!o.nombre) { toast("Escriba el nombre", true); return false; }
         var item = Object.assign({}, p, o, { foto: uploaderValue(root)[0] || "" });
+        item.enc = fitVal(root, item.foto); if (!item.enc) delete item.enc;
         if (item.destacado) team().forEach(function (x) { x.destacado = false; });
         if (i >= 0) team()[i] = item; else team().push(item);
         mark("team"); route();
         toast("Guardado. Recuerde publicar.");
       });
     bindUploader($("#drawer-body"), { accept: "image/jpeg,image/png,image/webp", maxSize: 1400 });
+    bindFit($("#drawer-body"), p.enc, "Foto del abogado", [{ id: "a", label: "Foto destacada", ratio: 4 / 5 }, { id: "b", label: "Tarjeta del equipo", ratio: 1 }]);
   }
 
   /* ---------- Imágenes y fondos ---------- */
@@ -383,9 +409,10 @@
         var ov = typeof b.overlay === "number" ? b.overlay : dark ? 0.78 : 0.86;
         var col = dark ? "rgba(7,19,38," + ov + ")" : "rgba(250,246,239," + ov + ")";
         return '<div class="bg" data-key="' + s[0] + '" data-dark="' + (dark ? 1 : 0) + '">' +
-          '<div class="bg__prev" style="--ov:' + col + ";" + (b.url ? "background-image:url('" + esc(b.url) + "')" : "background:" + (dark ? "#0A1A30" : s[2] === "cream" ? "#FAF6EF" : "#fff")) + ";color:" + (dark ? "#fff" : "#0A1A30") + '"><span>' + esc(s[1]) + "</span></div>" +
+          '<div class="bg__prev" style="--ov:' + col + ";" + (b.url ? "background-image:url('" + esc(b.url) + "');background-color:" + (dark ? "#0A1A30" : "#FAF6EF") + ";" + window.ACFrame.bgStyle(b.enc) : "background:" + (dark ? "#0A1A30" : s[2] === "cream" ? "#FAF6EF" : "#fff")) + ";color:" + (dark ? "#fff" : "#0A1A30") + '"><span>' + esc(s[1]) + "</span></div>" +
           '<div class="bg__body">' + (b.url ? '<label>Capa de color: <b>' + Math.round(ov * 100) + '%</b><input type="range" min="0.3" max="0.97" step="0.01" value="' + ov + '"></label>' : '<small class="muted">Sin imagen (usa el color de la marca)</small>') +
-          '<div class="bg__actions"><button type="button" class="btn btn--navy btn--sm" data-bg-up>' + (b.url ? "Cambiar" : "Subir imagen") + "</button>" + (b.url ? '<button type="button" class="btn btn--line btn--sm" data-bg-rm>Quitar</button>' : "") + "</div></div></div>";
+          '<div class="bg__actions">' + (b.url ? '<button type="button" class="btn btn--gold btn--sm" data-bg-fit>✂️ Ajustar foto</button>' : "") + '<button type="button" class="btn btn--navy btn--sm" data-bg-up>' + (b.url ? "Cambiar" : "Subir imagen") + "</button>" + (b.url ? '<button type="button" class="btn btn--line btn--sm" data-bg-rm>Quitar</button>' : "") + "</div>" +
+          (b.url && (b.enc || b.encM) ? '<small class="muted">✓ Foto ajustada' + (b.encM ? " (computador y celular por separado)" : "") + "</small>" : "") + "</div></div>";
       }).join("") + "</div></div>";
 
     $("#logo-up", v).addEventListener("click", async function () {
@@ -416,6 +443,22 @@
           state.draft.backgrounds[key] = { url: url, overlay: typeof prev.overlay === "number" ? prev.overlay : card.getAttribute("data-dark") === "1" ? 0.78 : 0.86 };
           mark("backgrounds"); route();
         } catch (e) { toast(e.message, true); this.textContent = "Subir imagen"; }
+      });
+      var fit = $("[data-bg-fit]", card);
+      if (fit) fit.addEventListener("click", async function () {
+        var b = state.draft.backgrounds[key], dark = card.getAttribute("data-dark") === "1";
+        var ov = typeof b.overlay === "number" ? b.overlay : dark ? 0.78 : 0.86;
+        var name = (SECTIONS.find(function (x) { return x[0] === key; }) || [])[1];
+        var r = await window.ACFrame.open({
+          url: b.url, title: "Fondo: " + (name || key), separate: true, value: { d: b.enc, m: b.encM },
+          frames: [{ id: "d", label: "💻 Computador", ratio: 16 / 9 }, { id: "m", label: "📱 Celular", ratio: 1 / 2 }],
+          overlay: dark ? "rgba(7,19,38," + ov + ")" : "rgba(250,246,239," + ov + ")", fill: dark ? "#0A1A30" : "#FAF6EF"
+        });
+        if (!r) return;
+        state.draft.backgrounds = Object.assign({}, state.draft.backgrounds);
+        var nb = Object.assign({}, b, { enc: r.d }); if (r.m) nb.encM = r.m; else delete nb.encM;
+        state.draft.backgrounds[key] = nb;
+        mark("backgrounds"); route(); toast("Ajuste guardado. Recuerde publicar.");
       });
       var rm = $("[data-bg-rm]", card);
       if (rm) rm.addEventListener("click", function () {

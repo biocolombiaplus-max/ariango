@@ -42,6 +42,17 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+  /** Encuadre de una foto (posición, acercamiento y modo) guardado desde el panel. */
+  function num(v, min, max, d) { v = Number(v); return isFinite(v) ? Math.min(max, Math.max(min, v)) : d; }
+  function encVals(e) {
+    e = e || {};
+    return { x: num(e.x, 0, 100, 50), y: num(e.y, 0, 100, 50), z: num(e.z, 1, 4, 1), fit: e.fit === "contain" ? "contain" : "cover" };
+  }
+  function encStyle(enc, url) {
+    if (!enc || (enc.url && enc.url !== url)) return "";
+    var v = encVals(enc);
+    return ' style="--x:' + v.x + "%;--y:" + v.y + "%;--z:" + v.z + ";--fit:" + v.fit + '"';
+  }
   function safeUrl(u) {
     u = String(u || "").trim();
     return /^(https:\/\/|\/|assets\/)/.test(u) && !/["'()\\\s]/.test(u) ? u : "";
@@ -367,7 +378,7 @@
     casesRail.innerHTML = list.map(function (c, idx) {
       var imgs = (c.imagenes || []).map(safeUrl).filter(Boolean);
       var media = imgs.length
-        ? '<img src="' + esc(imgs[0]) + '" alt="Documento del caso: ' + esc(c.titulo) + '" loading="lazy">' +
+        ? '<img src="' + esc(imgs[0]) + '"' + encStyle(c.enc, c.imagenes && c.imagenes[0]) + ' alt="Documento del caso: ' + esc(c.titulo) + '" loading="lazy">' +
           '<span class="case__zoom"><svg class="ic"><use href="#i-eye"/></svg> Ver documento</span>' +
           (imgs.length > 1 ? '<span class="case__count">' + imgs.length + " imágenes</span>" : "")
         : '<span class="case__media-ph"><svg class="ic"><use href="#i-doc"/></svg>Documento protegido</span>';
@@ -422,7 +433,7 @@
     if (featured) {
       var foto = safeUrl(featured.foto);
       fWrap.innerHTML =
-        '<div class="portrait">' + (foto ? '<img src="' + esc(foto) + '" alt="' + esc(featured.nombre) + '">' : '<div class="portrait__ph"><img src="' + esc(logo) + '" alt=""></div>') +
+        '<div class="portrait">' + (foto ? '<img src="' + esc(foto) + '"' + encStyle(featured.enc, featured.foto) + ' alt="' + esc(featured.nombre) + '">' : '<div class="portrait__ph"><img src="' + esc(logo) + '" alt=""></div>') +
         '<div class="portrait__exp"><b data-e="team.expN">' + (CONTENT.texts && CONTENT.texts["team.expN"] ? sanitize(CONTENT.texts["team.expN"]) : "30+") + "</b>años de experiencia</div></div>" +
         '<div class="featured__copy"><p class="eyebrow">Director</p><h3 class="h3">' + esc(featured.nombre) + "</h3>" +
         '<p class="featured__role">' + esc(featured.cargo) + "</p>" +
@@ -434,7 +445,7 @@
     var grid = $("#team-grid");
     grid.innerHTML = rest.map(function (p) {
       var f = safeUrl(p.foto);
-      return '<article class="lawyer"><div class="lawyer__img">' + (f ? '<img src="' + esc(f) + '" alt="' + esc(p.nombre) + '" loading="lazy">' : '<svg class="ic"><use href="#i-user"/></svg>') + "</div>" +
+      return '<article class="lawyer"><div class="lawyer__img">' + (f ? '<img src="' + esc(f) + '"' + encStyle(p.enc, p.foto) + ' alt="' + esc(p.nombre) + '" loading="lazy">' : '<svg class="ic"><use href="#i-user"/></svg>') + "</div>" +
         '<div class="lawyer__body"><b>' + esc(p.nombre) + "</b><span>" + esc(p.cargo) + "</span>" +
         (p.especialidad ? "<p>" + esc(p.especialidad) + "</p>" : "") + (p.tarjeta ? "<p>T.P. " + esc(p.tarjeta) + "</p>" : "") + "</div></article>";
     }).join("");
@@ -475,9 +486,11 @@
         var a = typeof b.overlay === "number" ? b.overlay : dark ? 0.78 : 0.86;
         sec.style.setProperty("--bg-img", 'url("' + url + '")');
         sec.style.setProperty("--bg-overlay", dark ? "rgba(7,19,38," + a + ")" : "rgba(250,246,239," + a + ")");
+        sec.style.setProperty("--bg-fill", dark ? "#0A1A30" : "#FAF6EF");
+        var d = encVals(b.enc), m = b.encM ? encVals(b.encM) : d;
+        [["x", d.x + "%"], ["y", d.y + "%"], ["z", d.z], ["fit", d.fit], ["mx", m.x + "%"], ["my", m.y + "%"], ["mz", m.z], ["mfit", m.fit]].forEach(function (p) { sec.style.setProperty("--bg-" + p[0], p[1]); });
       } else {
-        sec.style.removeProperty("--bg-img");
-        sec.style.removeProperty("--bg-overlay");
+        ["img", "overlay", "fill", "x", "y", "z", "fit", "mx", "my", "mz", "mfit"].forEach(function (k) { sec.style.removeProperty("--bg-" + k); });
       }
     });
 
