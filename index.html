@@ -31,7 +31,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script>document.documentElement.className += " js";</script>
-  <link rel="stylesheet" href="assets/css/styles.css?v=20261001b">
+  <link rel="stylesheet" href="assets/css/styles.css?v=20261001c">
 
   <script type="application/ld+json">
   {
@@ -105,18 +105,17 @@
 
 <!-- ===== Banner de anuncios ===== -->
 <div class="announce" role="region" aria-label="Anuncios">
-  <div class="container announce__inner">
-    <div class="announce__rotator" aria-live="polite">
-      <p class="announce__msg is-on"><span class="announce__ic">⚖️</span><span data-e="ann.1">Especialistas en <b>doble registro Colombia – Venezuela</b></span></p>
-      <p class="announce__msg"><span class="announce__ic">🏛️</span><span data-e="ann.2"><b>Más de 30 años</b> de experiencia jurídica en Cúcuta</span></p>
-      <p class="announce__msg"><span class="announce__ic">🔒</span><span data-e="ann.3">Evaluación inicial <b>confidencial y sin compromiso</b></span></p>
-      <p class="announce__msg"><span class="announce__ic">🌎</span><span data-e="ann.4">Atención presencial en Cúcuta y <b>virtual desde cualquier país</b></span></p>
+  <div class="announce__inner">
+    <div class="ticker">
+      <div class="ticker__track">
+        <div class="ticker__row"><span class="ticker__item"><span class="ticker__ic">⚖️</span><span data-e="ann.1">Especialistas en <b>doble registro Colombia – Venezuela</b></span></span><span class="ticker__sep" aria-hidden="true">✦</span><span class="ticker__item"><span class="ticker__ic">🏛️</span><span data-e="ann.2"><b>Más de 30 años</b> de experiencia jurídica</span></span><span class="ticker__sep" aria-hidden="true">✦</span><span class="ticker__item"><span class="ticker__ic">🔒</span><span data-e="ann.3">Evaluación inicial <b>confidencial</b></span></span><span class="ticker__sep" aria-hidden="true">✦</span><span class="ticker__item"><span class="ticker__ic">📄</span><span data-e="ann.4">Nulidad de <b>registro civil</b> y de <b>partida de nacimiento</b></span></span><span class="ticker__sep" aria-hidden="true">✦</span><span class="ticker__item"><span class="ticker__ic">🏠</span><span data-e="ann.5"><b>Sucesiones</b> y herencias en Colombia y Venezuela</span></span><span class="ticker__sep" aria-hidden="true">✦</span><span class="ticker__item"><span class="ticker__ic">🌎</span><span data-e="ann.6">Atención en Cúcuta y <b>virtual desde cualquier país</b></span></span><span class="ticker__sep" aria-hidden="true">✦</span></div>
+        <div class="ticker__row ticker__row--clone" aria-hidden="true"></div>
+      </div>
     </div>
     <span class="announce__links">
       <a data-set="email" data-set-href="mailto" href="mailto:gerencia@ariangoconsultores.com">gerencia@ariangoconsultores.com</a>
       <a href="admin/" class="announce__admin"><svg class="ic"><use href="#i-lock"/></svg> Acceso</a>
     </span>
-    <button type="button" class="announce__cta" data-open-lead><svg class="ic"><use href="#i-wa"/></svg> <span data-e="ann.cta">Escríbanos</span></button>
   </div>
 </div>
 
@@ -680,7 +679,7 @@
 <nav class="tabbar" aria-label="Navegación rápida">
   <a href="#inicio" class="tabbar__item is-active" data-tab="inicio"><svg class="ic"><use href="#i-home"/></svg><span>Inicio</span></a>
   <a href="#servicios" class="tabbar__item" data-tab="servicios"><svg class="ic"><use href="#i-grid"/></svg><span>Servicios</span></a>
-  <button type="button" class="tabbar__fab" data-open-lead aria-label="Hablar por WhatsApp"><svg class="ic"><use href="#i-wa"/></svg></button>
+  <button type="button" class="tabbar__fab" data-open-lead aria-label="Hablar por WhatsApp"><span class="tabbar__fab-ic"><svg class="ic"><use href="#i-wa"/></svg></span><span>WhatsApp</span></button>
   <a href="#casos-exito" class="tabbar__item" data-tab="casos-exito"><svg class="ic"><use href="#i-trophy"/></svg><span>Casos</span></a>
   <a href="#faq" class="tabbar__item" data-tab="faq"><svg class="ic"><use href="#i-help"/></svg><span>Dudas</span></a>
 </nav>
@@ -800,8 +799,8 @@
   </form>
 </template>
 
-<script src="assets/js/config.js?v=20261001b"></script>
-<script src="assets/js/defaults.js?v=20261001b"></script>
-<script src="assets/js/main.js?v=20261001b" defer></script>
+<script src="assets/js/config.js?v=20261001c"></script>
+<script src="assets/js/defaults.js?v=20261001c"></script>
+<script src="assets/js/main.js?v=20261001c" defer></script>
 </body>
 </html>

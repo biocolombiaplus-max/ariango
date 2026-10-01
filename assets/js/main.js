@@ -500,7 +500,14 @@
     renderCases(CONTENT.cases || DEF.cases);
     renderTeam(CONTENT.team || DEF.team);
     $$("[data-rail]").forEach(function (r) { if (r.id !== "cases-rail" && r.id !== "team-grid") setupRail(r); });
+    syncTicker();
     observeReveal(document);
+  }
+
+  function syncTicker() {
+    var row = $(".ticker__row:not(.ticker__row--clone)"), clone = $(".ticker__row--clone");
+    if (!row || !clone) return;
+    clone.innerHTML = row.innerHTML.replace(/ data-e="[^"]*"/g, "").replace(/ contenteditable="true"/g, "");
   }
 
   function loadContent(fresh) {
@@ -516,7 +523,7 @@
     if (c && Object.keys(c).length) applyContent(c);
     initAnalytics();
     if (editing) {
-      ["assets/js/ac-upload.js?v=20261001b", "assets/js/editor.js?v=20261001b"].reduce(function (p, src) {
+      ["assets/js/ac-upload.js?v=20261001c", "assets/js/editor.js?v=20261001c"].reduce(function (p, src) {
         return p.then(function () {
           return new Promise(function (res, rej) { var sc = document.createElement("script"); sc.src = src; sc.onload = res; sc.onerror = rej; document.body.appendChild(sc); });
         });
@@ -532,21 +539,33 @@
     sanitize: sanitize
   };
 
-  /* ---------- Banner de anuncios (rotativo) ---------- */
+  /* ---------- Barra inferior: se oculta al bajar y sobre formularios ---------- */
   (function () {
-    var msgs = $$(".announce__msg");
-    if (msgs.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    var i = 0;
-    setInterval(function () {
-      if (document.body.classList.contains("ac-editing")) return;
-      var cur = msgs[i];
-      var visible = msgs.filter(function (m) { return m.textContent.trim(); });
-      if (visible.length < 2) return;
-      do { i = (i + 1) % msgs.length; } while (!msgs[i].textContent.trim());
-      cur.classList.remove("is-on"); cur.classList.add("is-out");
-      msgs[i].classList.remove("is-out"); msgs[i].classList.add("is-on");
-      setTimeout(function () { cur.classList.remove("is-out"); }, 600);
-    }, 4200);
+    var tb = $(".tabbar");
+    if (!tb) return;
+    var lastY = window.scrollY, wizardInView = false, typing = false;
+    function update(hideByScroll) {
+      tb.classList.toggle("is-hidden", hideByScroll || wizardInView || typing);
+    }
+    var scrollHide = false;
+    window.addEventListener("scroll", function () {
+      var y = window.scrollY, d = y - lastY;
+      if (Math.abs(d) < 6) return;
+      scrollHide = d > 0 && y > 240;
+      lastY = y;
+      update(scrollHide);
+    }, { passive: true });
+    if ("IntersectionObserver" in window) {
+      var seen = new Set();
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) { if (e.isIntersecting) seen.add(e.target); else seen.delete(e.target); });
+        wizardInView = seen.size > 0;
+        update(scrollHide);
+      }, { threshold: 0.2 });
+      $$("main .wizard, #quiz").forEach(function (w) { io.observe(w); });
+    }
+    document.addEventListener("focusin", function (e) { if (e.target.matches("input, textarea, select")) { typing = true; update(scrollHide); } });
+    document.addEventListener("focusout", function () { typing = false; update(scrollHide); });
   })();
 
   /* ---------- Año ---------- */
