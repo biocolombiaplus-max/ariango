@@ -31,7 +31,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script>document.documentElement.className += " js";</script>
-  <link rel="stylesheet" href="assets/css/styles.css?v=20261002a">
+  <link rel="stylesheet" href="assets/css/styles.css?v=20261002b">
 
   <script type="application/ld+json">
   {
@@ -79,6 +79,7 @@
   <symbol id="i-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></g></symbol>
   <symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></g></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></g></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="4" y="11" width="16" height="11" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></g></symbol>
   <symbol id="i-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></g></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></symbol>
@@ -128,6 +129,7 @@
     </a>
     <nav class="nav" aria-label="Principal">
       <a href="#servicios">Servicios</a>
+      <a href="/sucesiones/">Sucesiones</a>
       <a href="#test">Test gratuito</a>
       <a href="#casos-exito">Casos de éxito</a>
       <a href="#equipo">Equipo</a>
@@ -340,7 +342,7 @@
           <li><svg class="ic"><use href="#i-check"/></svg><span data-e="srv.3b">Bienes o herederos en Colombia y Venezuela</span></li>
           <li><svg class="ic"><use href="#i-check"/></svg><span data-e="srv.3c">Testamentos, unión marital e impuestos</span></li>
         </ul>
-        <button type="button" class="btn btn--navy btn--block" data-open-lead data-service="Sucesión / herencia"><span data-e="srv.3cta">Asesoría en sucesiones</span> <svg class="ic"><use href="#i-arrow"/></svg></button>
+        <a href="/sucesiones/" class="btn btn--navy btn--block"><span data-e="srv.3cta">Más información sobre mi sucesión</span> <svg class="ic"><use href="#i-arrow"/></svg></a>
       </article>
     </div>
 
@@ -649,7 +651,7 @@
       <ul>
         <li><a href="#servicios">Nulidad de Registro Civil (Colombia)</a></li>
         <li><a href="#servicios">Nulidad de Partida de Nacimiento (Venezuela)</a></li>
-        <li><a href="#servicios">Sucesiones y herencias</a></li>
+        <li><a href="/sucesiones/">Sucesiones y herencias</a></li>
         <li><a href="#test">Test gratuito</a></li>
       </ul>
     </div>
@@ -693,6 +695,7 @@
       <a href="#problema" data-close-sheet><svg class="ic"><use href="#i-alert"/></svg>¿Le pasa esto?</a>
       <a href="#facil" data-close-sheet><svg class="ic"><use href="#i-spark"/></svg>Explicado fácil</a>
       <a href="#servicios" data-close-sheet><svg class="ic"><use href="#i-grid"/></svg>Servicios</a>
+      <a href="/sucesiones/" data-close-sheet><svg class="ic"><use href="#i-home"/></svg>Sucesiones</a>
       <a href="#test" data-close-sheet><svg class="ic"><use href="#i-search"/></svg>Test gratuito</a>
       <a href="#casos-exito" data-close-sheet><svg class="ic"><use href="#i-trophy"/></svg>Casos de éxito</a>
       <a href="#equipo" data-close-sheet><svg class="ic"><use href="#i-users"/></svg>Equipo</a>
@@ -799,8 +802,8 @@
   </form>
 </template>
 
-<script src="assets/js/config.js?v=20261002a"></script>
-<script src="assets/js/defaults.js?v=20261002a"></script>
-<script src="assets/js/main.js?v=20261002a" defer></script>
+<script src="assets/js/config.js?v=20261002b"></script>
+<script src="assets/js/defaults.js?v=20261002b"></script>
+<script src="assets/js/main.js?v=20261002b" defer></script>
 </body>
 </html>

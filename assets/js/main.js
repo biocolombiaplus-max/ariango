@@ -86,6 +86,7 @@
     });
     $(".wizard__back", form).addEventListener("click", function () { form.goTo(1); });
     setupLeadForm(form);
+    if (form.parentNode && form.parentNode.getAttribute("data-wizard-service")) form.goTo(2, form.parentNode.getAttribute("data-wizard-service"));
   }
 
   /* ---------- Modal ---------- */
@@ -97,6 +98,7 @@
     lastFocus = document.activeElement;
     closeSheet();
     modalForm.resultado_test.value = extra || "";
+    service = service || document.body.getAttribute("data-default-service");
     if (service) modalForm.goTo(2, service); else modalForm.goTo(1);
     modal.hidden = false;
     document.body.classList.add("no-scroll");
@@ -146,7 +148,7 @@
         if (!en.isIntersecting) return;
         var id = en.target.id;
         var tabMap = { inicio: "inicio", problema: "inicio", facil: "inicio", urgencia: "inicio", servicios: "servicios", test: "servicios", proceso: "servicios", "casos-exito": "casos-exito", equipo: "casos-exito", "marco-legal": "faq", compromiso: "faq", documentos: "faq", faq: "faq", contacto: "faq" };
-        tabItems.forEach(function (t) { t.classList.toggle("is-active", t.getAttribute("data-tab") === tabMap[id]); });
+        tabItems.forEach(function (t) { t.classList.toggle("is-active", t.getAttribute("data-tab") === (tabMap[id] || id)); });
         navLinks.forEach(function (a) { a.classList.toggle("is-active", a.getAttribute("href") === "#" + id); });
       });
     }, { rootMargin: "-45% 0px -50% 0px" });
@@ -341,7 +343,7 @@
     }
     quiz.innerHTML = html;
   }
-  quiz.addEventListener("click", function (e) {
+  if (quiz) quiz.addEventListener("click", function (e) {
     var o = e.target.closest(".quiz__opt");
     if (o) {
       if (!qHist.length) track("quiz_start", {});
@@ -354,12 +356,13 @@
       openModal(r.service, "Hice el test de la página y mi resultado fue: " + r.route + ".");
     }
   });
-  renderQuiz();
+  if (quiz) renderQuiz();
 
   /* ---------- Casos de éxito ---------- */
   var casesRail = $("#cases-rail");
   var LB = { items: [], i: 0 };
   function renderCases(list) {
+    if (!casesRail) return;
     list = (list || []).filter(function (c) { return c && c.visible !== false; });
     casesRail.innerHTML = list.map(function (c, idx) {
       var imgs = (c.imagenes || []).map(safeUrl).filter(Boolean);
@@ -385,7 +388,7 @@
     casesRail._list = list;
     setupRail(casesRail);
   }
-  casesRail.addEventListener("click", function (e) {
+  if (casesRail) casesRail.addEventListener("click", function (e) {
     var m = e.target.closest("[data-case]");
     if (!m || m.disabled) return;
     var c = casesRail._list[+m.getAttribute("data-case")];
@@ -402,11 +405,11 @@
     $$(".lightbox__nav", lb).forEach(function (b) { b.hidden = LB.items.length < 2; });
     lb.hidden = false; document.body.classList.add("no-scroll");
   }
-  function closeLightbox() { if (!lb.hidden) { lb.hidden = true; document.body.classList.remove("no-scroll"); } }
-  $("[data-close-lb]", lb).addEventListener("click", closeLightbox);
-  lb.addEventListener("click", function (e) { if (e.target === lb) closeLightbox(); });
-  $("[data-lb-prev]", lb).addEventListener("click", function () { LB.i = (LB.i - 1 + LB.items.length) % LB.items.length; showLightbox(); });
-  $("[data-lb-next]", lb).addEventListener("click", function () { LB.i = (LB.i + 1) % LB.items.length; showLightbox(); });
+  function closeLightbox() { if (lb && !lb.hidden) { lb.hidden = true; document.body.classList.remove("no-scroll"); } }
+  if (lb) $("[data-close-lb]", lb).addEventListener("click", closeLightbox);
+  if (lb) lb.addEventListener("click", function (e) { if (e.target === lb) closeLightbox(); });
+  if (lb) $("[data-lb-prev]", lb).addEventListener("click", function () { LB.i = (LB.i - 1 + LB.items.length) % LB.items.length; showLightbox(); });
+  if (lb) $("[data-lb-next]", lb).addEventListener("click", function () { LB.i = (LB.i + 1) % LB.items.length; showLightbox(); });
 
   /* ---------- Equipo ---------- */
   function renderTeam(list) {
@@ -415,6 +418,7 @@
     var rest = list.filter(function (p) { return p !== featured; });
     var logo = safeUrl(images().logo) || "assets/img/logo-ac.png";
     var fWrap = $("#team-featured");
+    if (!fWrap) return;
     if (featured) {
       var foto = safeUrl(featured.foto);
       fWrap.innerHTML =
@@ -489,7 +493,7 @@
     });
     var map = $("#map");
     var mapSrc = "https://maps.google.com/maps?q=" + encodeURIComponent(s.mapQuery || "Cúcuta, Norte de Santander") + "&z=" + (s.mapQuery ? 16 : 13) + "&output=embed";
-    if (map._src !== mapSrc) {
+    if (map && map._src !== mapSrc) {
       map._src = mapSrc;
       if ("IntersectionObserver" in window) {
         var mo = new IntersectionObserver(function (en) { if (en[0].isIntersecting) { map.src = map._src; mo.disconnect(); } }, { rootMargin: "300px" });
@@ -523,7 +527,7 @@
     if (c && Object.keys(c).length) applyContent(c);
     initAnalytics();
     if (editing) {
-      ["assets/js/ac-upload.js?v=20261002a", "assets/js/editor.js?v=20261002a"].reduce(function (p, src) {
+      ["/assets/js/ac-upload.js?v=20261002b", "/assets/js/editor.js?v=20261002b"].reduce(function (p, src) {
         return p.then(function () {
           return new Promise(function (res, rej) { var sc = document.createElement("script"); sc.src = src; sc.onload = res; sc.onerror = rej; document.body.appendChild(sc); });
         });
@@ -536,6 +540,7 @@
     getContent: function () { return CONTENT; },
     applyContent: applyContent,
     loadContent: loadContent,
+    openModal: openModal,
     sanitize: sanitize
   };
 
@@ -569,12 +574,14 @@
   })();
 
   /* ---------- Año ---------- */
-  $("#year").textContent = new Date().getFullYear();
+  if ($("#year")) $("#year").textContent = new Date().getFullYear();
 
   /* ---------- Burbuja del botón flotante ---------- */
   var wa = $(".wa-float");
-  setTimeout(function () { wa.classList.add("show-tip"); }, 7000);
-  setTimeout(function () { wa.classList.remove("show-tip"); }, 14000);
+  if (wa) {
+    setTimeout(function () { wa.classList.add("show-tip"); }, 7000);
+    setTimeout(function () { wa.classList.remove("show-tip"); }, 14000);
+  }
 
   /* ---------- Parámetros de campaña (UTM) ---------- */
   var tracking = (function () {

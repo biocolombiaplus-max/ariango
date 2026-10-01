@@ -105,7 +105,7 @@
     });
   }
   makeEditable(document);
-  new MutationObserver(function () { makeEditable(document); }).observe($("#team-featured"), { childList: true, subtree: true });
+  if ($("#team-featured")) new MutationObserver(function () { makeEditable(document); }).observe($("#team-featured"), { childList: true, subtree: true });
 
   // Abrir todos los desplegables para poder editarlos
   $$("details").forEach(function (d) { d.open = true; });
@@ -217,6 +217,7 @@
   /* ---------- Avisos para secciones administradas desde el panel ---------- */
   [["#casos-exito", "Los casos de éxito se agregan y editan en el panel.", "/admin/#casos"], ["#equipo", "Los abogados del equipo y sus fotos se editan en el panel.", "/admin/#equipo"]].forEach(function (n) {
     var sec = $(n[0] + " .container");
+    if (!sec) return;
     var note = document.createElement("div");
     note.className = "ac-note";
     note.innerHTML = "<span>" + n[1] + '</span><a href="' + n[2] + '">Abrir panel</a>';
