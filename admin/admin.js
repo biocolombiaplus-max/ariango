@@ -363,7 +363,7 @@
         return '<div class="item' + (p.visible === false ? " is-hidden" : "") + '">' +
           '<div class="item__thumb item__thumb--round" style="' + (p.foto ? "background-image:url('" + esc(p.foto) + "');" + (p.enc && p.enc.url === p.foto ? window.ACFrame.bgStyle(p.enc) : "") : "") + '">' + (p.foto ? "" : "👤") + "</div>" +
           '<div class="item__main"><b>' + esc(p.nombre) + "</b><small>" + esc(p.cargo) + "</small>" +
-          '<div class="tags">' + (p.destacado ? '<span class="tag tag--ok">★ Destacado</span>' : "") + (p.visible === false ? '<span class="tag tag--off">Oculto</span>' : "") + (!p.foto ? '<span class="tag tag--warn">Sin foto</span>' : "") + "</div></div>" +
+          '<div class="tags">' + (p.destacado ? '<span class="tag tag--ok">★ Destacado</span>' : "") + (p.desde || p.experiencia ? '<span class="tag">' + (p.desde ? new Date().getFullYear() - p.desde : p.experiencia) + (p.expMas !== false ? "+" : "") + " años</span>" : "") + (p.visible === false ? '<span class="tag tag--off">Oculto</span>' : "") + (!p.foto ? '<span class="tag tag--warn">Sin foto</span>' : "") + "</div></div>" +
           listActions(i, list.length, p.visible === false) + "</div>";
       }).join("") : '<div class="empty">Aún no hay abogados.</div>') + "</div>";
     $("#add-law", v).addEventListener("click", function () { editLawyer(-1); });
@@ -378,13 +378,18 @@
       field("cargo", "Cargo", p.cargo, { ph: "Abogado(a) especialista en…" }) +
       field("especialidad", "Especialidad", p.especialidad, { ph: "Registro civil, familia, sucesiones…" }) +
       field("tarjeta", "Tarjeta profesional (opcional)", p.tarjeta, { ph: "Número de T.P." }) +
+      '<div class="exp-box"><div class="exp-box__prev" id="exp-prev"></div><div class="exp-box__f">' +
+      '<div class="grid2">' + field("experiencia", "Años de experiencia", p.experiencia || "", { type: "number", ph: "Ej. 15" }) +
+      field("desde", "O año en que empezó a ejercer", p.desde || "", { type: "number", ph: "Ej. 1995", help: "Si lo llena, los años se actualizan solos cada año." }) + "</div>" +
+      check("expMas", "Mostrar con «+» (ej. 30+)", p.expMas !== false) + "<small class=\"muted\">Déjelo vacío para no mostrar los años.</small></div></div>" +
       field("bio", "Reseña breve", p.bio, { textarea: true, rows: 3 }) +
       check("destacado", "Abogado destacado (aparece en grande)", !!p.destacado) +
       check("visible", "Mostrar en el sitio", p.visible !== false) + "</div>",
       function (root) {
         var o = readForm(root);
         if (!o.nombre) { toast("Escriba el nombre", true); return false; }
-        var item = Object.assign({}, p, o, { foto: uploaderValue(root)[0] || "" });
+        var item = Object.assign({}, p, o, { foto: uploaderValue(root)[0] || "", experiencia: Math.max(0, parseInt(o.experiencia, 10) || 0), desde: parseInt(o.desde, 10) || "" });
+        if (item.desde && (item.desde < 1950 || item.desde > new Date().getFullYear())) { toast("Revise el año en que empezó a ejercer", true); return false; }
         item.enc = fitVal(root, item.foto); if (!item.enc) delete item.enc;
         if (item.destacado) team().forEach(function (x) { x.destacado = false; });
         if (i >= 0) team()[i] = item; else team().push(item);
@@ -392,6 +397,14 @@
         toast("Guardado. Recuerde publicar.");
       });
     bindUploader($("#drawer-body"), { accept: "image/jpeg,image/png,image/webp", maxSize: 1400 });
+    var body = $("#drawer-body");
+    function expPrev() {
+      var y = new Date().getFullYear(), d = parseInt($('[name="desde"]', body).value, 10), n = d >= 1950 && d <= y ? y - d : parseInt($('[name="experiencia"]', body).value, 10) || 0;
+      if (d >= 1950 && d <= y) $('[name="experiencia"]', body).value = n;
+      $("#exp-prev", body).innerHTML = n > 0 ? "<b>" + n + ($('[name="expMas"]', body).checked ? "+" : "") + "</b><span>años de<br>experiencia</span>" : "<span>Sin años<br>visibles</span>";
+    }
+    ["experiencia", "desde", "expMas"].forEach(function (k) { $('[name="' + k + '"]', body).addEventListener("input", expPrev); $('[name="' + k + '"]', body).addEventListener("change", expPrev); });
+    expPrev();
     bindFit($("#drawer-body"), p.enc, "Foto del abogado", [{ id: "a", label: "Foto destacada", ratio: 4 / 5 }, { id: "b", label: "Tarjeta del equipo", ratio: 1 }]);
   }
 

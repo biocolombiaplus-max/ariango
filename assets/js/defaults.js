@@ -12,6 +12,8 @@ window.AC_DEFAULTS = {
       cargo: "Asesor jurídico principal · Director",
       especialidad: "Registro civil, nacionalidad, familia y sucesiones",
       tarjeta: "",
+      experiencia: 30,
+      expMas: true,
       bio: "Más de 30 años de experiencia acompañando a familias de la frontera colombo-venezolana a resolver sus problemas de identidad y de herencia.",
       foto: ""
     }

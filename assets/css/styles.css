@@ -375,7 +375,7 @@ body.ac-editing .ticker__row--clone { display: none; }
 .featured__tp { font-size: .85rem; color: var(--muted); }
 .rail--team { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
 .lawyer { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
-.lawyer__img { overflow: hidden; aspect-ratio: 1 / 1; background: var(--navy-grad); display: grid; place-items: center; }
+.lawyer__img { position: relative; overflow: hidden; aspect-ratio: 1 / 1; background: var(--navy-grad); display: grid; place-items: center; }
 .lawyer__img img { width: 100%; height: 100%; object-fit: var(--fit, cover); object-position: var(--x, 50%) var(--y, 50%); transform: scale(var(--z, 1)); transform-origin: var(--x, 50%) var(--y, 50%); }
 .lawyer__img .ic { width: 64px; height: 64px; color: var(--gold-300); opacity: .7; }
 .lawyer__body { padding: 18px 20px 20px; }
@@ -772,3 +772,8 @@ body.no-scroll { overflow: hidden; }
   .hero.has-bg .hero__lead { text-shadow: 0 1px 10px rgba(0,0,0,.45); }
   .hero.has-bg .hero__flag { height: var(--hero-ph); bottom: auto; }
 }
+
+/* Años de experiencia en la tarjeta de cada abogado */
+.lawyer__exp { position: absolute; left: 12px; bottom: 12px; display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px 7px 8px; border-radius: 14px; background: rgba(7,19,38,.78); border: 1px solid rgba(235,203,151,.35); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: 0 10px 24px -10px rgba(0,0,0,.6); }
+.lawyer__exp b { display: grid; place-items: center; min-width: 42px; height: 34px; padding: 0 6px; border-radius: 10px; background: var(--gold-grad); color: var(--navy-950); font-family: var(--serif); font-size: 1.15rem; line-height: 1; }
+.lawyer .lawyer__exp span { margin: 0; max-width: 84px; font-size: .62rem; font-weight: 800; letter-spacing: .08em; line-height: 1.25; text-transform: uppercase; color: var(--gold-300); }

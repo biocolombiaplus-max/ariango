@@ -423,6 +423,13 @@
   if (lb) $("[data-lb-next]", lb).addEventListener("click", function () { LB.i = (LB.i + 1) % LB.items.length; showLightbox(); });
 
   /* ---------- Equipo ---------- */
+  /** Años de experiencia de un abogado: fijos o calculados desde el año en que empezó. */
+  function expOf(p) {
+    var y = new Date().getFullYear(), d = Number(p.desde);
+    var n = d >= 1950 && d <= y ? y - d : Number(p.experiencia) || 0;
+    if (n <= 0) return null;
+    return { n: n + (p.expMas !== false ? "+" : ""), t: n === 1 && p.expMas === false ? "año de experiencia" : "años de experiencia" };
+  }
   function renderTeam(list) {
     list = (list || []).filter(function (p) { return p && p.visible !== false; });
     var featured = list.filter(function (p) { return p.destacado; })[0] || list[0];
@@ -434,7 +441,8 @@
       var foto = safeUrl(featured.foto);
       fWrap.innerHTML =
         '<div class="portrait">' + (foto ? '<img src="' + esc(foto) + '"' + encStyle(featured.enc, featured.foto) + ' alt="' + esc(featured.nombre) + '">' : '<div class="portrait__ph"><img src="' + esc(logo) + '" alt=""></div>') +
-        '<div class="portrait__exp"><b data-e="team.expN">' + (CONTENT.texts && CONTENT.texts["team.expN"] ? sanitize(CONTENT.texts["team.expN"]) : "30+") + "</b>años de experiencia</div></div>" +
+        (expOf(featured) ? '<div class="portrait__exp"><b>' + esc(expOf(featured).n) + "</b>" + expOf(featured).t + "</div>"
+          : '<div class="portrait__exp"><b data-e="team.expN">' + (CONTENT.texts && CONTENT.texts["team.expN"] ? sanitize(CONTENT.texts["team.expN"]) : "30+") + "</b>años de experiencia</div>") + "</div>" +
         '<div class="featured__copy"><p class="eyebrow">Director</p><h3 class="h3">' + esc(featured.nombre) + "</h3>" +
         '<p class="featured__role">' + esc(featured.cargo) + "</p>" +
         (featured.especialidad ? '<span class="featured__spec"><svg class="ic"><use href="#i-scale"/></svg>' + esc(featured.especialidad) + "</span>" : "") +
@@ -444,8 +452,9 @@
     } else fWrap.innerHTML = "";
     var grid = $("#team-grid");
     grid.innerHTML = rest.map(function (p) {
-      var f = safeUrl(p.foto);
-      return '<article class="lawyer"><div class="lawyer__img">' + (f ? '<img src="' + esc(f) + '"' + encStyle(p.enc, p.foto) + ' alt="' + esc(p.nombre) + '" loading="lazy">' : '<svg class="ic"><use href="#i-user"/></svg>') + "</div>" +
+      var f = safeUrl(p.foto), ex = expOf(p);
+      return '<article class="lawyer"><div class="lawyer__img">' + (f ? '<img src="' + esc(f) + '"' + encStyle(p.enc, p.foto) + ' alt="' + esc(p.nombre) + '" loading="lazy">' : '<svg class="ic"><use href="#i-user"/></svg>') +
+        (ex ? '<span class="lawyer__exp"><b>' + esc(ex.n) + "</b><span>" + ex.t + "</span></span>" : "") + "</div>" +
         '<div class="lawyer__body"><b>' + esc(p.nombre) + "</b><span>" + esc(p.cargo) + "</span>" +
         (p.especialidad ? "<p>" + esc(p.especialidad) + "</p>" : "") + (p.tarjeta ? "<p>T.P. " + esc(p.tarjeta) + "</p>" : "") + "</div></article>";
     }).join("");

@@ -114,7 +114,7 @@ code { background: var(--cream-2); padding: 1px 6px; border-radius: 6px; }
 .f { display: grid; gap: 6px; }
 .f label { font-size: .82rem; font-weight: 650; color: var(--navy-700); }
 .f small { color: var(--muted); font-size: .78rem; }
-.f input[type=text], .f input[type=email], .f input[type=url], .f input[type=tel], .f select, .f textarea { width: 100%; font: inherit; font-size: .96rem; padding: 11px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--cream); color: var(--ink); }
+.f input[type=text], .f input[type=email], .f input[type=url], .f input[type=tel], .f input[type=number], .f input[type=date], .f input[type=password], .f select, .f textarea { width: 100%; font: inherit; font-size: .96rem; padding: 11px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--cream); color: var(--ink); }
 .f textarea { min-height: 84px; resize: vertical; }
 .f input:focus, .f select:focus, .f textarea:focus { outline: none; border-color: var(--gold-500); background: #fff; box-shadow: 0 0 0 4px rgba(199,146,80,.14); }
 .check { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: 12px; background: var(--cream); border: 1px solid var(--line); font-size: .9rem; cursor: pointer; }
@@ -248,3 +248,11 @@ body:not(.is-lawyer) [data-lawyer-only] { display: none !important; }
   .frm__modes { grid-template-columns: 1fr; }
   .frm__foot .btn { flex: 1; }
 }
+
+/* Años de experiencia del abogado */
+.exp-box { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: start; padding: 14px; border-radius: 16px; background: var(--cream); border: 1px solid var(--line); }
+.exp-box__prev { display: grid; place-items: center; text-align: center; min-height: 96px; padding: 10px 6px; border-radius: 16px; background: var(--gold-grad); color: var(--navy-950); box-shadow: 0 12px 24px -12px rgba(169,115,58,.8); }
+.exp-box__prev b { display: block; font: 800 2rem/1 "Playfair Display", serif; }
+.exp-box__prev span { font-size: .6rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; line-height: 1.25; }
+.exp-box__f { display: grid; gap: 6px; min-width: 0; }
+@media (max-width: 520px) { .exp-box { grid-template-columns: 1fr; } .exp-box__prev { min-height: 0; grid-auto-flow: column; gap: 10px; justify-content: center; } }
