@@ -31,7 +31,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script>document.documentElement.className += " js";</script>
-  <link rel="stylesheet" href="assets/css/styles.css?v=20261008a">
+  <link rel="stylesheet" href="assets/css/styles.css?v=20261013a">
 
   <script type="application/ld+json">
   {
@@ -88,6 +88,9 @@
   <symbol id="i-arrow" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19 12H5M11 18l-6-6 6-6"/></symbol>
   <symbol id="i-chat" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-bank" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 4l9 5.5M4.5 10h15M6 10v7M10 10v7M14 10v7M18 10v7M3.5 20h17M4.5 17.5h15"/></g></symbol>
+  <symbol id="i-guard" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8.5h10M7.5 8.5 8 5.5c2.7-1.2 5.3-1.2 8 0l.5 3"/><path d="M8 8.5v1.5a4 4 0 0 0 8 0V8.5"/><path d="M4.5 21c.6-3.6 3.6-6 7.5-6s6.9 2.4 7.5 6"/><path d="m10.5 17 1.5 2 1.5-2"/></g></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></g></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M18 6 6 18M6 6l12 12"/></symbol>
   <symbol id="i-spark" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2c.5 4.5 2.5 6.5 7 7-4.5.5-6.5 2.5-7 7-.5-4.5-2.5-6.5-7-7 4.5-.5 6.5-2.5 7-7zM19 15c.3 2.2 1.3 3.2 3.5 3.5-2.2.3-3.2 1.3-3.5 3.5-.3-2.2-1.3-3.2-3.5-3.5 2.2-.3 3.2-1.3 3.5-3.5z"/></symbol>
@@ -114,7 +117,7 @@
       </div>
     </div>
     <span class="announce__links">
-      <a data-set="email" data-set-href="mailto" href="mailto:gerencia@ariangoconsultores.com">gerencia@ariangoconsultores.com</a>
+      <a data-set="email" data-set-href="mailto" href="mailto:gerencia@ariangoconsultores.com">Gerencia@ariangoconsultores.com</a>
       <a href="admin/" class="announce__admin"><svg class="ic"><use href="#i-lock"/></svg> Acceso</a>
     </span>
   </div>
@@ -130,7 +133,7 @@
     <nav class="nav" aria-label="Principal">
       <a href="#servicios">Servicios</a>
       <a href="/sucesiones/">Sucesiones</a>
-      <a href="#test">Test gratuito</a>
+      <a href="#proceso">Cómo trabajamos</a>
       <a href="#casos-exito">Casos de éxito</a>
       <a href="#equipo">Equipo</a>
       <a href="#marco-legal">La ley</a>
@@ -160,7 +163,7 @@
       <p class="hero__lead" data-e="hero.lead">Si usted aparece registrado como nacido en <b>Colombia</b> y también en <b>Venezuela</b>, su cédula, su pasaporte y su herencia pueden quedar bloqueados. <b>Nosotros lo solucionamos.</b></p>
       <div class="hero__actions">
         <a href="#evaluar" class="btn btn--gold btn--lg"><span data-e="hero.cta1">Evaluar mi caso ahora</span> <svg class="ic"><use href="#i-arrow"/></svg></a>
-        <a href="#test" class="btn btn--ghost btn--lg"><svg class="ic"><use href="#i-spark"/></svg> <span data-e="hero.cta2">Test de 30 segundos</span></a>
+        <a href="#proceso" class="btn btn--ghost btn--lg"><svg class="ic"><use href="#i-spark"/></svg> <span data-e="hero.cta2b">Cómo trabajamos</span></a>
       </div>
       <ul class="hero__trust">
         <li><span class="hero__trust-n" data-e="hero.trust1n">30+</span><span data-e="hero.trust1">años de experiencia</span></li>
@@ -192,27 +195,27 @@
 <section class="section" id="problema" data-bg="problema">
   <div class="container">
     <header class="section-head reveal">
-      <p class="eyebrow" data-e="pain.eyebrow">¿Le suena familiar?</p>
-      <h2 class="h2" data-e="pain.title">¿Le está pasando alguna de estas cosas?</h2>
-      <p class="muted" data-e="pain.sub">Toque las que le pasan. Si marca al menos una, su caso puede estar relacionado con un doble registro.</p>
+      <p class="eyebrow" data-e="pain2.eyebrow">¿Se identifica con alguna de estas situaciones?</p>
+      <h2 class="h2" data-e="pain2.title">¿Sus documentos le están causando problemas?</h2>
+      <p class="muted" data-e="pain2.sub">Cuéntenos qué le está pasando. Seleccione todas las situaciones que se relacionen con su caso y le ayudaremos a identificar qué puede hacer.</p>
     </header>
-    <div class="pain-grid">
-      <button type="button" class="pain-card reveal" data-pain aria-pressed="false"><span class="pain-card__ic"><svg class="ic"><use href="#i-id"/></svg></span><span class="pain-card__txt" data-e="pain.1">Me negaron, bloquearon o cancelaron la cédula</span><span class="pain-card__check"><svg class="ic"><use href="#i-check"/></svg></span></button>
-      <button type="button" class="pain-card reveal" data-pain aria-pressed="false"><span class="pain-card__ic"><svg class="ic"><use href="#i-plane"/></svg></span><span class="pain-card__txt" data-e="pain.2">No puedo sacar el pasaporte o tengo problemas al viajar</span><span class="pain-card__check"><svg class="ic"><use href="#i-check"/></svg></span></button>
-      <button type="button" class="pain-card reveal" data-pain aria-pressed="false"><span class="pain-card__ic"><svg class="ic"><use href="#i-heart"/></svg></span><span class="pain-card__txt" data-e="pain.3">No puedo afiliarme a salud, pensión o abrir una cuenta</span><span class="pain-card__check"><svg class="ic"><use href="#i-check"/></svg></span></button>
-      <button type="button" class="pain-card reveal" data-pain aria-pressed="false"><span class="pain-card__ic"><svg class="ic"><use href="#i-briefcase"/></svg></span><span class="pain-card__txt" data-e="pain.4">Me piden documentos que no coinciden para trabajar</span><span class="pain-card__check"><svg class="ic"><use href="#i-check"/></svg></span></button>
-      <button type="button" class="pain-card reveal" data-pain aria-pressed="false"><span class="pain-card__ic"><svg class="ic"><use href="#i-home"/></svg></span><span class="pain-card__txt" data-e="pain.5">No puedo heredar, comprar, vender ni escriturar</span><span class="pain-card__check"><svg class="ic"><use href="#i-check"/></svg></span></button>
-      <button type="button" class="pain-card reveal" data-pain aria-pressed="false"><span class="pain-card__ic"><svg class="ic"><use href="#i-users"/></svg></span><span class="pain-card__txt" data-e="pain.6">Mis hijos quedaron con datos que hay que corregir</span><span class="pain-card__check"><svg class="ic"><use href="#i-check"/></svg></span></button>
+    <div class="pain-grid pain-grid--list">
+      <button type="button" class="pain-card reveal" data-pain aria-pressed="false"><span class="pain-card__ic"><svg class="ic"><use href="#i-id"/></svg></span><span class="pain-card__txt" data-e="pain2.1">La Registraduría anuló mi cédula.</span><span class="pain-card__check"><svg class="ic"><use href="#i-check"/></svg></span></button>
+      <button type="button" class="pain-card reveal" data-pain aria-pressed="false"><span class="pain-card__ic"><svg class="ic"><use href="#i-plane"/></svg></span><span class="pain-card__txt" data-e="pain2.2">He tenido dificultades para sacar mi pasaporte o tengo problemas al viajar.</span><span class="pain-card__check"><svg class="ic"><use href="#i-check"/></svg></span></button>
+      <button type="button" class="pain-card reveal" data-pain aria-pressed="false"><span class="pain-card__ic"><svg class="ic"><use href="#i-guard"/></svg></span><span class="pain-card__txt" data-e="pain2.3">Me han detenido o me han impedido continuar al pasar por una frontera.</span><span class="pain-card__check"><svg class="ic"><use href="#i-check"/></svg></span></button>
+      <button type="button" class="pain-card reveal" data-pain aria-pressed="false"><span class="pain-card__ic"><svg class="ic"><use href="#i-heart"/></svg></span><span class="pain-card__txt" data-e="pain2.4">No puedo afiliarme a salud, acceder a mi pensión o abrir una cuenta bancaria.</span><span class="pain-card__check"><svg class="ic"><use href="#i-check"/></svg></span></button>
+      <button type="button" class="pain-card reveal" data-pain aria-pressed="false"><span class="pain-card__ic"><svg class="ic"><use href="#i-home"/></svg></span><span class="pain-card__txt" data-e="pain2.5">Tengo dificultades para realizar una sucesión, comprar o vender un inmueble, o escriturar una propiedad.</span><span class="pain-card__check"><svg class="ic"><use href="#i-check"/></svg></span></button>
+      <button type="button" class="pain-card reveal" data-pain aria-pressed="false"><span class="pain-card__ic"><svg class="ic"><use href="#i-users"/></svg></span><span class="pain-card__txt" data-e="pain2.6">Los documentos de nacimiento de mis hijos tienen datos que necesito corregir.</span><span class="pain-card__check"><svg class="ic"><use href="#i-check"/></svg></span></button>
     </div>
     <div class="pain-result" id="pain-result" hidden>
-      <p><b><span id="pain-count">0</span> de 6.</b> <span data-e="pain.result">Su situación tiene salida legal. Hablemos hoy.</span></p>
-      <button type="button" class="btn btn--gold btn--sm" data-open-lead data-service="Doble registro (no sé cuál anular)"><span data-e="pain.resultCta">Quiero resolverlo</span> <svg class="ic"><use href="#i-arrow"/></svg></button>
+      <p><b><span id="pain-count">0</span> de 6.</b> <span data-e="pain2.result">Su caso tiene alternativas legales. Cuéntenos y le orientamos.</span></p>
+      <button type="button" class="btn btn--gold btn--sm" data-open-lead data-service="Doble registro (no sé cuál anular)"><span data-e="pain2.resultCta">Quiero que revisen mi caso</span> <svg class="ic"><use href="#i-arrow"/></svg></button>
     </div>
     <div class="relief reveal">
       <div class="relief__ic"><svg class="ic"><use href="#i-heart"/></svg></div>
       <div>
-        <h3 data-e="relief.title">No es su culpa.</h3>
-        <p data-e="relief.text">Durante años, miles de familias de la frontera registraron a sus hijos en los dos países “por si acaso”. Hoy los sistemas cruzan la información y el doble registro se detecta. <b>La buena noticia: la ley tiene una salida, y nosotros la conocemos.</b></p>
+        <h3 data-e="relief2.title">No tiene que resolverlo solo.</h3>
+        <p data-e="relief2.text">Sabemos que los problemas con los documentos de identidad y los registros de nacimiento pueden generar preocupación e incertidumbre. En Ariango Consultores estudiamos su caso y le orientamos sobre las alternativas legales disponibles.</p>
       </div>
     </div>
   </div>
@@ -224,7 +227,7 @@
     <header class="section-head reveal">
       <p class="eyebrow" data-e="easy.eyebrow">Explicado en palabras sencillas</p>
       <h2 class="h2" data-e="easy.title">Doble nacionalidad: <span class="gold-text">sí</span>. Doble registro: <span class="red-text">no</span>.</h2>
-      <p class="muted" data-e="easy.sub">La ley le permite ser colombiano y venezolano al mismo tiempo. Lo que no permite es tener dos “partidas” que dicen que usted nació en dos lugares.</p>
+      <p class="muted" data-e="easy.sub2"><b>La ley permite tener la nacionalidad colombiana y la venezolana al mismo tiempo.</b> El problema surge cuando existen registros de nacimiento en ambos países que indican lugares de nacimiento diferentes para una misma persona. Esta situación puede requerir una revisión jurídica para determinar cómo regularizar los registros.</p>
     </header>
 
     <div class="rail rail--3" data-rail>
@@ -359,38 +362,22 @@
   </div>
 </section>
 
-<!-- ===== Test ===== -->
-<section class="section section--cream" id="test" data-bg="test">
-  <div class="container test">
-    <div class="test__intro reveal">
-      <p class="eyebrow" data-e="test.eyebrow">Herramienta gratuita</p>
-      <h2 class="h2" data-e="test.title">Descubra en 30 segundos qué camino tiene su caso</h2>
-      <p class="muted" data-e="test.sub">Responda unas preguntas sencillas. Al final le mostramos la ruta legal más probable, en palabras claras.</p>
-      <ul class="test__bullets">
-        <li><svg class="ic"><use href="#i-clock"/></svg><span data-e="test.b1">Menos de 1 minuto</span></li>
-        <li><svg class="ic"><use href="#i-lock"/></svg><span data-e="test.b2">No pide datos personales</span></li>
-        <li><svg class="ic"><use href="#i-scale"/></svg><span data-e="test.b3">Basado en la ley vigente</span></li>
-      </ul>
-    </div>
-    <div class="quiz reveal" id="quiz" aria-live="polite"></div>
-  </div>
-</section>
-
 <!-- ===== Proceso ===== -->
 <section class="section section--navy" id="proceso" data-bg="proceso" data-bg-tone="dark">
   <div class="container">
     <header class="section-head section-head--light reveal">
       <p class="eyebrow eyebrow--light" data-e="proc.eyebrow">Cómo trabajamos</p>
-      <h2 class="h2" data-e="proc.title">5 pasos. Usted siempre sabe dónde va su caso.</h2>
+      <h2 class="h2" data-e="proc2.title"><span class="gold-text">5 pasos.</span> Usted siempre sabe en qué va su caso.</h2>
+      <p class="muted" data-e="proc2.sub">Un proceso claro, seguro y acompañado por expertos.</p>
     </header>
-    <ol class="steps">
-      <li class="step reveal"><span class="step__n">1</span><div><h3 data-e="proc.1t">Le escuchamos</h3><p data-e="proc.1p">Nos cuenta su historia y revisamos sus documentos de Colombia y Venezuela.</p></div></li>
-      <li class="step reveal"><span class="step__n">2</span><div><h3 data-e="proc.2t">Le decimos la verdad</h3><p data-e="proc.2p">Qué registro anular, por qué vía, cuánto cuesta y cuánto puede tardar. Todo por escrito.</p></div></li>
-      <li class="step reveal"><span class="step__n">3</span><div><h3 data-e="proc.3t">Reunimos los documentos</h3><p data-e="proc.3p">Le decimos exactamente qué conseguir y gestionamos copias, apostillas y poderes.</p></div></li>
-      <li class="step reveal"><span class="step__n">4</span><div><h3 data-e="proc.4t">Presentamos y hacemos seguimiento</h3><p data-e="proc.4p">Radicamos ante la entidad o el juzgado y le informamos cada avance.</p></div></li>
-      <li class="step reveal"><span class="step__n">5</span><div><h3 data-e="proc.5t">Identidad en regla</h3><p data-e="proc.5p">Le acompañamos hasta el nuevo registro, la cédula y los ajustes finales.</p></div></li>
+    <ol class="steps steps--v2">
+      <li class="step reveal"><span class="step__n">1</span><span class="step__ic"><svg class="ic"><use href="#i-chat"/></svg></span><div class="step__b"><h3 data-e="proc2.1t">Le escuchamos y analizamos su caso</h3><p data-e="proc2.1p">Conocemos su historia, revisamos sus documentos de Colombia y Venezuela y entendemos sus necesidades.</p></div></li>
+      <li class="step reveal"><span class="step__n">2</span><span class="step__ic"><svg class="ic"><use href="#i-doc"/></svg></span><div class="step__b"><h3 data-e="proc2.2t">Le explicamos la situación real</h3><p data-e="proc2.2p">Identificamos qué registro debe revisarse, por qué y cuál es la vía adecuada (administrativa o judicial) según su caso.</p></div></li>
+      <li class="step reveal"><span class="step__n">3</span><span class="step__ic"><svg class="ic"><use href="#i-folder"/></svg></span><div class="step__b"><h3 data-e="proc2.3t">Reunimos y preparamos los documentos</h3><p data-e="proc2.3p">Le indicamos exactamente qué documentos se requieren y los gestionamos (copias, apostillas y poderes, si aplica).</p></div></li>
+      <li class="step reveal"><span class="step__n">4</span><span class="step__ic"><svg class="ic"><use href="#i-bank"/></svg></span><div class="step__b"><h3 data-e="proc2.4t">Presentamos y hacemos seguimiento</h3><p data-e="proc2.4p">Radicamos ante la entidad o el juzgado correspondiente y lo mantenemos informado en cada avance.</p></div></li>
+      <li class="step reveal"><span class="step__n">5</span><span class="step__ic"><svg class="ic"><use href="#i-id"/></svg></span><div class="step__b"><h3 data-e="proc2.5t">Avanzamos hacia una identidad en regla</h3><p data-e="proc2.5p">Le acompañamos hasta obtener el nuevo registro, la cédula y los ajustes finales en los demás documentos que lo requieran.</p></div></li>
     </ol>
-    <div class="center reveal"><button type="button" class="btn btn--gold btn--lg" data-open-lead><span data-e="proc.cta">Empezar con el paso 1</span> <svg class="ic"><use href="#i-arrow"/></svg></button></div>
+    <div class="center reveal"><button type="button" class="btn btn--gold btn--lg" data-open-lead><span data-e="proc2.cta">Quiero empezar mi caso</span> <svg class="ic"><use href="#i-arrow"/></svg></button></div>
   </div>
 </section>
 
@@ -620,7 +607,7 @@
       <p data-e="contact.lead">Deje sus datos y continúe la conversación por WhatsApp con nuestro equipo. Es rápido, confidencial y sin compromiso.</p>
       <ul class="contact__list">
         <li><svg class="ic"><use href="#i-wa"/></svg><div><span>WhatsApp</span><button type="button" class="link" data-open-lead data-set="whatsappVisible">+57 315 600 2993</button></div></li>
-        <li><svg class="ic"><use href="#i-mail"/></svg><div><span>Correo</span><a data-set="email" data-set-href="mailto" href="mailto:gerencia@ariangoconsultores.com">gerencia@ariangoconsultores.com</a></div></li>
+        <li><svg class="ic"><use href="#i-mail"/></svg><div><span>Correo</span><a data-set="email" data-set-href="mailto" href="mailto:gerencia@ariangoconsultores.com">Gerencia@ariangoconsultores.com</a></div></li>
         <li><svg class="ic"><use href="#i-pin"/></svg><div><span>Oficina</span><b data-set="address">Cúcuta, Norte de Santander</b></div></li>
         <li><svg class="ic"><use href="#i-clock"/></svg><div><span>Atención</span><b data-set="hours">Presencial con cita previa y virtual</b></div></li>
       </ul>
@@ -652,14 +639,14 @@
         <li><a href="#servicios">Nulidad de Registro Civil (Colombia)</a></li>
         <li><a href="#servicios">Nulidad de Partida de Nacimiento (Venezuela)</a></li>
         <li><a href="/sucesiones/">Sucesiones y herencias</a></li>
-        <li><a href="#test">Test gratuito</a></li>
+        <li><a href="#proceso">Cómo trabajamos</a></li>
       </ul>
     </div>
     <div>
       <h4>Contacto</h4>
       <ul>
         <li><a href="#contacto" data-open-lead>WhatsApp <span data-set="whatsappVisible">+57 315 600 2993</span></a></li>
-        <li><a data-set="email" data-set-href="mailto" href="mailto:gerencia@ariangoconsultores.com">gerencia@ariangoconsultores.com</a></li>
+        <li><a data-set="email" data-set-href="mailto" href="mailto:gerencia@ariangoconsultores.com">Gerencia@ariangoconsultores.com</a></li>
         <li><span data-set="address">Cúcuta, Norte de Santander</span></li>
         <li><a href="admin/" class="footer__admin"><svg class="ic"><use href="#i-lock"/></svg> Ingreso administrativo</a></li>
       </ul>
@@ -696,7 +683,7 @@
       <a href="#facil" data-close-sheet><svg class="ic"><use href="#i-spark"/></svg>Explicado fácil</a>
       <a href="#servicios" data-close-sheet><svg class="ic"><use href="#i-grid"/></svg>Servicios</a>
       <a href="/sucesiones/" data-close-sheet><svg class="ic"><use href="#i-home"/></svg>Sucesiones</a>
-      <a href="#test" data-close-sheet><svg class="ic"><use href="#i-search"/></svg>Test gratuito</a>
+      <a href="#proceso" data-close-sheet><svg class="ic"><use href="#i-search"/></svg>Cómo trabajamos</a>
       <a href="#casos-exito" data-close-sheet><svg class="ic"><use href="#i-trophy"/></svg>Casos de éxito</a>
       <a href="#equipo" data-close-sheet><svg class="ic"><use href="#i-users"/></svg>Equipo</a>
       <a href="#marco-legal" data-close-sheet><svg class="ic"><use href="#i-scale"/></svg>La ley</a>
@@ -824,8 +811,8 @@
   </form>
 </template>
 
-<script src="assets/js/config.js?v=20261008a"></script>
-<script src="assets/js/defaults.js?v=20261008a"></script>
-<script src="assets/js/main.js?v=20261008a" defer></script>
+<script src="assets/js/config.js?v=20261013a"></script>
+<script src="assets/js/defaults.js?v=20261013a"></script>
+<script src="assets/js/main.js?v=20261013a" defer></script>
 </body>
 </html>

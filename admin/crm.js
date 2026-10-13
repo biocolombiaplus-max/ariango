@@ -1322,7 +1322,7 @@
       '<div class="grid2">' + fi("cedulaRep", "Cédula del representante", f.cedulaRep) + fi("tarjeta", "Tarjeta profesional", f.tarjeta) + "</div>" +
       '<div class="grid2">' + fi("direccion", "Dirección", f.direccion) + fi("ciudad", "Ciudad", f.ciudad || "Cúcuta") + "</div>" +
       '<div class="grid2">' + fi("telefono", "Teléfono", f.telefono || "+57 315 600 2993") + fi("whatsapp", "WhatsApp del portal (solo números)", f.whatsapp || "573156002993") + "</div>" +
-      '<div class="grid2">' + fi("email", "Correo", f.email || "gerencia@ariangoconsultores.com") + fi("web", "Sitio web", f.web || "ariangoconsultores.com") + "</div>" +
+      '<div class="grid2">' + fi("email", "Correo", f.email || "Gerencia@ariangoconsultores.com") + fi("web", "Sitio web", f.web || "ariangoconsultores.com") + "</div>" +
       '<label class="check"><input type="checkbox" name="ivaResponsable"' + (f.ivaResponsable ? " checked" : "") + "><span>Somos responsables de IVA (sumar 19% por defecto)</span></label>" +
       fi("notaRecibo", "Nota al pie de los recibos", f.notaRecibo || "Este recibo es soporte del pago de honorarios profesionales. No reemplaza la factura electrónica cuando esta sea exigible.") +
       '<button type="button" class="btn btn--gold" id="firm-save">Guardar datos</button></div></div>' +

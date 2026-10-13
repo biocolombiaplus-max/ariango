@@ -261,3 +261,17 @@ body:not(.is-lawyer) [data-lawyer-only] { display: none !important; }
 .frm__zoom button { height: 36px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; font-size: 1.1rem; font-weight: 800; color: var(--navy-800); cursor: pointer; }
 .frm__zl { display: flex; justify-content: space-between; color: var(--muted); font-size: .72rem; font-weight: 600; }
 .frm__rg[hidden] { display: none; }
+
+/* Imágenes dentro de cada sección */
+.simgs { display: grid; gap: 12px; margin-top: 14px; }
+.simg { padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: #fff; }
+.simg__h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.simg__h b { color: var(--navy-800); }
+.simg__h small { color: var(--muted); }
+.simg__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.simg__it { display: grid; gap: 8px; padding: 8px; border-radius: 14px; background: var(--cream); border: 1px solid var(--line); }
+.simg__th { aspect-ratio: 4 / 3; border-radius: 10px; background-color: #0A1A30; background-repeat: no-repeat; }
+.simg__it input { width: 100%; font: inherit; font-size: .86rem; padding: 8px 10px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; }
+.simg__a { display: flex; flex-wrap: wrap; gap: 6px; }
+.simg__add { display: grid; place-items: center; align-content: center; gap: 4px; min-height: 150px; border-radius: 14px; border: 2px dashed var(--gold-500); background: var(--gold-100); color: var(--navy-800); font-size: 1.6rem; font-weight: 700; cursor: pointer; }
+.simg__add span { font-size: .86rem; }

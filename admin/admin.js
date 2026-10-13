@@ -12,7 +12,7 @@
 
   var SECTIONS = [
     ["inicio", "Portada (inicio)", "dark"], ["problema", "¿Le pasa esto?", "light"], ["facil", "Explicado fácil", "cream"],
-    ["urgencia", "Entre más espere…", "dark"], ["servicios", "Servicios", "light"], ["test", "Test de 30 segundos", "cream"],
+    ["urgencia", "Entre más espere…", "dark"], ["servicios", "Servicios", "light"],
     ["proceso", "Cómo trabajamos", "dark"], ["casos-exito", "Casos de éxito", "light"], ["equipo", "Equipo", "cream"],
     ["marco-legal", "Marco legal", "light"], ["compromiso", "Compromiso", "dark"], ["documentos", "Documentos", "light"],
     ["faq", "Preguntas frecuentes", "cream"], ["contacto", "Contacto", "dark"]
@@ -426,7 +426,7 @@
           '<div class="bg__body">' + (b.url ? '<label>Capa de color: <b>' + Math.round(ov * 100) + '%</b><input type="range" min="0.3" max="0.97" step="0.01" value="' + ov + '"></label>' : '<small class="muted">Sin imagen (usa el color de la marca)</small>') +
           '<div class="bg__actions">' + (b.url ? '<button type="button" class="btn btn--gold btn--sm" data-bg-fit>✂️ Ajustar foto</button>' : "") + '<button type="button" class="btn btn--navy btn--sm" data-bg-up>' + (b.url ? "Cambiar" : "Subir imagen") + "</button>" + (b.url ? '<button type="button" class="btn btn--line btn--sm" data-bg-rm>Quitar</button>' : "") + "</div>" +
           (b.url && (b.enc || b.encM) ? '<small class="muted">✓ Foto ajustada' + (b.encM ? " (computador y celular por separado)" : "") + "</small>" : "") + "</div></div>";
-      }).join("") + "</div></div>";
+      }).join("") + "</div></div>" + secImgsCard();
 
     $("#logo-up", v).addEventListener("click", async function () {
       var f = await window.ACUpload.pick("image/png,image/webp,image/jpeg");
@@ -489,7 +489,68 @@
         mark("backgrounds");
       });
     });
+    bindSecImgs(v);
   };
+
+  /* ---------- Imágenes dentro de cada sección ---------- */
+  var SI_RATIO = { 1: [21 / 9, 4 / 3], 2: [4 / 3, 4 / 3], 3: [4 / 5, 4 / 5] };
+  function secImgs() { return state.draft.sectionImages || {}; }
+  function secImgsCard() {
+    var si = secImgs();
+    return '<div class="card"><h2>Imágenes dentro de cada sección</h2>' +
+      '<p class="muted">Agregue hasta 3 fotos por sección. Se muestran debajo del título con marco premium: <b>1 foto</b> = imagen panorámica; <b>2 o 3 fotos</b> = galería (en el celular se deslizan con el dedo). Puede escribir un texto corto sobre cada foto y ajustar cómo se ve con ✂️.</p>' +
+      '<div class="simgs">' + SECTIONS.filter(function (x) { return x[0] !== "inicio"; }).map(function (sct) {
+        var list = si[sct[0]] || [];
+        return '<div class="simg" data-sk="' + sct[0] + '"><div class="simg__h"><b>' + esc(sct[1]) + "</b><small>" + list.length + " de 3</small></div>" +
+          '<div class="simg__list">' + list.map(function (x, i) {
+            return '<div class="simg__it"><div class="simg__th" style="background-image:url(\'' + esc(x.url) + "\');" + window.ACFrame.bgStyle(x.enc) + '"></div>' +
+              '<input type="text" maxlength="120" data-si-cap="' + i + '" value="' + esc(x.caption || "") + '" placeholder="Texto sobre la foto (opcional)">' +
+              '<div class="simg__a"><button type="button" class="btn btn--gold btn--sm" data-si-fit="' + i + '">✂️ Ajustar</button>' +
+              (i > 0 ? '<button type="button" class="btn btn--line btn--sm" data-si-up="' + i + '" title="Mover antes">←</button>' : "") +
+              '<button type="button" class="btn btn--line btn--sm" data-si-rm="' + i + '">Quitar</button></div></div>';
+          }).join("") +
+          (list.length < 3 ? '<button type="button" class="simg__add" data-si-add>＋<span>Agregar foto</span></button>' : "") + "</div></div>";
+      }).join("") + "</div></div>";
+  }
+  function bindSecImgs(v) {
+    function upd(key, fn) {
+      var si = Object.assign({}, secImgs()); var list = (si[key] || []).slice();
+      fn(list); if (list.length) si[key] = list; else delete si[key];
+      state.draft.sectionImages = si; mark("sectionImages");
+    }
+    $$(".simg", v).forEach(function (box) {
+      var key = box.getAttribute("data-sk");
+      var add = $("[data-si-add]", box);
+      if (add) add.onclick = async function () {
+        var f = await window.ACUpload.pick("image/jpeg,image/png,image/webp", true);
+        if (!f.length) return;
+        add.innerHTML = "Subiendo…"; add.disabled = true;
+        try {
+          var cur = (secImgs()[key] || []).length;
+          for (var i = 0; i < f.length && cur + i < 3; i++) {
+            var url = await window.ACUpload.upload(f[i], { maxSize: 2200 });
+            upd(key, function (l) { l.push({ url: url, caption: "" }); });
+          }
+          route(); toast("Foto agregada. Recuerde publicar.");
+        } catch (e) { toast(e.message, true); route(); }
+      };
+      $$("[data-si-cap]", box).forEach(function (inp) {
+        inp.addEventListener("input", function () { var i = +inp.getAttribute("data-si-cap"); upd(key, function (l) { l[i] = Object.assign({}, l[i], { caption: inp.value }); }); });
+      });
+      $$("[data-si-rm]", box).forEach(function (b) { b.onclick = function () { if (!confirm("¿Quitar esta foto de la sección?")) return; upd(key, function (l) { l.splice(+b.getAttribute("data-si-rm"), 1); }); route(); }; });
+      $$("[data-si-up]", box).forEach(function (b) { b.onclick = function () { var i = +b.getAttribute("data-si-up"); upd(key, function (l) { l.splice(i - 1, 0, l.splice(i, 1)[0]); }); route(); }; });
+      $$("[data-si-fit]", box).forEach(function (b) {
+        b.onclick = async function () {
+          var i = +b.getAttribute("data-si-fit"), list = secImgs()[key] || [], x = list[i], r0 = SI_RATIO[list.length] || SI_RATIO[1];
+          var r = await window.ACFrame.open({ url: x.url, title: "Foto de la sección", value: x.enc && x.enc.url === x.url ? x.enc : null, fill: "#0A1A30",
+            frames: [{ id: "a", label: "💻 Computador", ratio: r0[0] }, { id: "b", label: "📱 Celular", ratio: r0[1] }] });
+          if (!r) return;
+          upd(key, function (l) { l[i] = Object.assign({}, l[i], { enc: Object.assign({ url: x.url }, r) }); });
+          route(); toast("Ajuste guardado. Recuerde publicar.");
+        };
+      });
+    });
+  }
 
   /* ---------- Ajustes ---------- */
   VIEWS.ajustes = function (v) {

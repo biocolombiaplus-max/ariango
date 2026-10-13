@@ -19,8 +19,7 @@ Incluye un **panel administrativo** (`/admin`) para editar la página sin saber 
 | Explicado fácil + Antes / Después | Lenguaje sencillo para cualquier persona; contraste visual entre el problema y la solución. |
 | “Entre más espere…” | Urgencia real y honesta (sin contadores falsos). |
 | Servicios | Tres servicios claros, cada uno con su botón de solicitud. |
-| Test de 30 segundos | Herramienta gratuita (reciprocidad) que muestra la ruta legal probable y lleva a WhatsApp con el resultado. |
-| Proceso en 5 pasos | Reduce la incertidumbre. |
+| Proceso en 5 pasos | Línea de tiempo con íconos: reduce la incertidumbre. |
 | Casos de éxito | Prueba social con documentos reales (administrable). |
 | Equipo | Autoridad: el Dr. Walter Enrique Arias Moreno y su equipo de abogados (administrable). |
 | La ley sin enredos | Normas vigentes explicadas en palabras simples, con las referencias exactas desplegables. |
@@ -62,6 +61,7 @@ Abra `https://ariangoconsultores.com/admin` (también aparece como **“Acceso�
 - **🏆 Casos de éxito:** agregue casos con fotos o PDF de documentos, situación, solución, resultado y testimonio. Marque **“Caso real autorizado”** solo cuando tenga la autorización escrita del cliente.
 - **👥 Equipo:** foto, nombre, cargo, especialidad y tarjeta profesional de cada abogado. El que marque como **destacado** aparece en grande.
 - **🖼 Imágenes y fondos:** logo y fondo de cada una de las 14 secciones, con control de intensidad de la capa de color.
+- **Imágenes dentro de cada sección:** hasta 3 fotos por sección, debajo del título (1 foto = panorámica; 2 o 3 = galería que se desliza en el celular), con texto opcional sobre la foto y ajuste ✂️.
 - **✂️ Ajustar foto:** en cada fondo, en la foto de cada abogado y en la portada de cada caso. Arrastre la foto para moverla, use **Acercar** o elija **Foto completa** para que se vea entera sin recortes. Los fondos se pueden ajustar distinto para **computador** y **celular**.
 - **⚙️ Ajustes:** WhatsApp, teléfono, correo, dirección, horario, mapa, saludo del mensaje de WhatsApp, Google Sheets, Google Analytics y Pixel de Meta.
 - **🕘 Historial:** cada publicación guarda una copia. Puede restaurar cualquiera de las últimas 40.

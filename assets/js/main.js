@@ -505,9 +505,26 @@
       }
     });
 
+    // Imágenes destacadas dentro de cada sección (administrables)
+    var simg = CONTENT.sectionImages || {};
+    $$("[data-bg]").forEach(function (sec) {
+      var old = sec.querySelector(".sec-media"); if (old) old.remove();
+      var list = (simg[sec.getAttribute("data-bg")] || []).filter(function (x) { return x && safeUrl(x.url); }).slice(0, 3);
+      if (!list.length) return;
+      var html = '<div class="sec-media sec-media--' + list.length + '">' + list.map(function (x) {
+        var u = safeUrl(x.url), cap = String(x.caption || "").slice(0, 120);
+        return '<figure class="sec-media__it"><div class="sec-media__fr"><img src="' + esc(u) + '"' + encStyle(x.enc, x.url) + ' alt="' + esc(cap || "Ariango Consultores") + '" loading="lazy"></div>' +
+          (cap ? '<figcaption><i></i>' + esc(cap) + "</figcaption>" : "") + "</figure>";
+      }).join("") + "</div>";
+      var head = sec.querySelector(".section-head");
+      if (head) head.insertAdjacentHTML("afterend", html);
+      else { var c = sec.querySelector(".container"); if (c) { c.insertAdjacentHTML("beforeend", html); c.lastElementChild.classList.add("sec-media--end"); } }
+    });
+
     var s = settings();
     $$("[data-set]").forEach(function (el) {
       var v = s[el.getAttribute("data-set")];
+      if (el.getAttribute("data-set") === "email" && /^gerencia@ariangoconsultores\.com$/i.test(v || "")) v = "Gerencia@ariangoconsultores.com";
       if (v) el.textContent = v;
     });
     $$("[data-set-href]").forEach(function (el) {
@@ -663,7 +680,7 @@
       Origen: [data.utm_source, data.utm_medium, data.utm_campaign].filter(Boolean).join(" / ") || "directo"
     };
     if (data.email) payload._replyto = data.email;
-    return fetch("https://formsubmit.co/ajax/" + encodeURIComponent(s.email), {
+    return fetch("https://formsubmit.co/ajax/" + encodeURIComponent(String(s.email).toLowerCase()), {
       method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(payload), keepalive: true
     }).catch(function () {});
